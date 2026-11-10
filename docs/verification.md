@@ -153,4 +153,4 @@ Previously measured palette ratios remain applicable; the migration keeps these 
 - Replacing or removing a photo leaves the old private file in storage. Unused files need manual cleanup in Supabase.
 - Reminders appear inside the app; they are not scheduled email or push notifications.
 - This migration starts fresh. Earlier Firebase accounts and records are not imported.
-- Android packaging and a download QR remain deferred until the user is ready with GitHub.
+- Android build and download verification is recorded in `docs/android.md`.

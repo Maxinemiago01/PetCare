@@ -1,0 +1,72 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-demo
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Get the project
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the web app and copy it into Android
+        run: npm run android:sync
+
+      - name: Install the Android SDK packages
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0"'
+
+      - name: Build the installable demo APK
+        working-directory: android
+        run: bash gradlew assembleDebug --no-daemon
+
+      - name: Prepare the APK and download QR
+        run: |
+          npm run android:qr
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/petcare.apk
+          sha256sum downloads/petcare.apk > downloads/petcare.apk.sha256
+
+      - name: Save the build files
+        uses: actions/upload-artifact@v7
+        with:
+          name: petcare-android
+          path: downloads/
+          if-no-files-found: error
+
+      - name: Publish the APK and QR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ! gh release view android-demo > /dev/null 2>&1; then
+            gh release create android-demo --target "$GITHUB_SHA" --title "Petcare Android demo" --notes-file downloads/release-notes.md
+          fi
+          gh release upload android-demo downloads/petcare.apk downloads/petcare-download-qr.png downloads/download-url.txt downloads/petcare.apk.sha256 --clobber
+          gh release edit android-demo --notes-file downloads/release-notes.md
+          echo "APK and QR: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/android-demo" >> "$GITHUB_STEP_SUMMARY"
