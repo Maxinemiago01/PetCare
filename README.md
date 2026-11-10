@@ -127,8 +127,8 @@ For this simple demo, removing or replacing a profile photo does not delete its 
 
 - Deleting a pet and its care records is one database transaction.
 - Marking a reminder done clears its next due date and keeps the original care record.
-- On Android, allow Petcare notifications to get a vibrating alert around 9:00 a.m. local time on the day before and the due date. Petcare schedules the alerts on that phone when you save a date or open the app. The phone's notification and battery settings can affect delivery and vibration.
-- Session tokens are kept in the browser's session storage. Passwords are not stored by the app.
+- On Android, allow Petcare notifications to get a vibrating alert around 9:00 a.m. local time on the day before and the due date. Set the next due date to today or a future date. Petcare schedules the alerts on that phone when you save a date or open the app. If the phone restarts later on the same day, Petcare can show an alert that was still waiting for you. The phone's notification and battery settings can affect delivery and vibration.
+- On Android, sign-in stays saved when the app closes or the phone restarts. In a browser, sign-in is saved for the tab. Logging out clears the saved session.
 - Firebase sessions are not reused for Supabase.
 
 ## Verification

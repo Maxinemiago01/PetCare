@@ -37,11 +37,10 @@ import { AuthService } from '../../services/auth.service';
           </p>
         </section>
         <section>
-          <h2>Your browser session</h2>
+          <h2>Your sign-in session</h2>
           <p>
-            The app keeps sign-in tokens in your browser’s session storage so you can move between
-            pages. Logging out clears the saved session. Treat access to an open, signed-in browser
-            tab as access to your notebook.
+            On Android, your sign-in is saved on the phone across app closes and restarts. In a
+            browser, it stays in your current tab. Logging out clears the saved session.
           </p>
         </section>
         <section>
