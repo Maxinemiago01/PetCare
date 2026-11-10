@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Pet, PetRecord } from '../models';
 import { AuthService } from './auth.service';
+import { CareNotificationsService } from './care-notifications.service';
 import { ImageService } from './image.service';
 
 @Injectable({ providedIn: 'root' })
@@ -14,6 +15,7 @@ export class PetService {
     private http: HttpClient,
     private auth: AuthService,
     private images: ImageService,
+    private careNotifications: CareNotificationsService,
   ) {}
 
   async getPets(): Promise<Pet[]> {
@@ -51,16 +53,28 @@ export class PetService {
   }
 
   async saveRecord(record: Omit<PetRecord, 'id'>, id?: string): Promise<PetRecord> {
-    return this.save<PetRecord>('pet_records', record, id);
+    const owner = this.auth.uid;
+    const saved = await this.save<PetRecord>('pet_records', record, id);
+    if (owner === this.auth.uid) await this.careNotifications.save(owner, saved);
+    return saved;
   }
 
   async deleteRecord(id: string): Promise<void> {
+    const owner = this.auth.uid;
     await this.remove('pet_records', id);
+    if (owner === this.auth.uid) await this.careNotifications.remove(owner, 'recordId', id);
   }
 
   async deletePet(id: string): Promise<void> {
+    const owner = this.auth.uid;
     // The database foreign key removes the pet's records in the same transaction.
     await this.remove('pets', id);
+    if (owner === this.auth.uid) await this.careNotifications.remove(owner, 'petId', id);
+  }
+
+  refreshCareNotifications(): void {
+    const owner = this.auth.uid;
+    if (owner) void this.careNotifications.refresh(owner, () => this.getRecords());
   }
 
   private async headers(): Promise<{ apikey: string; Authorization: string; Prefer: string }> {
