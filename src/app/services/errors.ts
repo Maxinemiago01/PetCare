@@ -13,7 +13,7 @@ export function errorMessage(error: unknown): string {
     return 'This account still requires email confirmation. Please ask the project owner to confirm it for this demo.';
   if (['user_already_exists', 'email_exists'].includes(code))
     return 'An account already uses this email. Please log in instead.';
-  if (code === 'weak_password') return 'Choose a stronger password with at least 6 characters.';
+  if (code === 'weak_password') return 'Choose a stronger password with at least 8 characters.';
   if (['email_address_invalid', 'validation_failed'].includes(code))
     return 'Please check your email address and password.';
   if (code === 'signup_disabled' || code === 'email_provider_disabled')

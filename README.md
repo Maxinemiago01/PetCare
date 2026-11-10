@@ -52,7 +52,7 @@ The quoted SQL names, such as `"petId"` and `"weightKg"`, match the existing Typ
 
 Email/password sign-in is enabled. Under **Authentication > Sign In / Providers > Email**, turn **Confirm email** OFF. This was verified on the supplied project.
 
-Users can register with a made-up address such as `alex@petcare.test` and a password of at least six characters. The address is their login ID and must still use email format. Registration signs them in immediately.
+Users can register with a made-up address such as `alex@petcare.test`. The login and registration forms require a password of at least eight characters. The address is their login ID and must still use email format. Registration signs them in immediately.
 
 The app checks the confirmation setting before registering. If confirmation is turned on again, it shows a setup message instead of requesting an email.
 
