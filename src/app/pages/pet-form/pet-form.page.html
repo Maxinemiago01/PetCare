@@ -1,0 +1,161 @@
+<a class="back-link" [routerLink]="id ? ['/app/pets', id] : ['/app']"
+  ><ion-icon name="arrow-back" aria-hidden="true" /> {{ id ? 'Back to profile' : 'Back to my pets'
+  }}</a
+>
+<div class="page-heading">
+  <div>
+    <span class="handwritten">A face you’ll never forget.</span>
+    <h1>
+      {{ id ? 'A little profile update' : 'Meet your new notebook star' }}<span class="heading-dot"
+        >.</span
+      >
+    </h1>
+    <p>
+      {{ id ? 'Keep their little details up to date.' : 'Start with the basics. You can add their
+      care records next.' }}
+    </p>
+  </div>
+</div>
+@if (loading) {
+<div class="loading-state" role="status">
+  <ion-spinner name="crescent" />
+  <p>Finding their details…</p>
+</div>
+} @else if (id && error && !pet.createdAt) {
+<div class="error-state" role="alert">
+  <h2>We couldn’t load this pet</h2>
+  <p>{{ error }}</p>
+  <button class="button secondary" type="button" (click)="load()">Try again</button>
+</div>
+} @else {
+<form #petForm="ngForm" ngNativeValidate (ngSubmit)="save(petForm)" class="pet-form-layout">
+  <aside class="photo-upload-panel">
+    <div class="profile-photo-preview">
+      @if (previewUrl || pet.imageUrl) {
+      <img [src]="previewUrl || pet.imageUrl" alt="Pet profile preview" /> } @else {
+      <ion-icon name="paw" aria-hidden="true" /> }
+    </div>
+    <h2>Their best side</h2>
+    <p>A familiar face for their little notebook.</p>
+    <input
+      #photoInput
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      hidden
+      (change)="choosePhoto($event)"
+      [disabled]="saving || preparing"
+      aria-label="Choose pet profile photo"
+    />
+    <button
+      class="button secondary"
+      type="button"
+      (click)="photoInput.click()"
+      [disabled]="saving || preparing"
+    >
+      <ion-icon name="camera" aria-hidden="true" />{{ preparing ? 'Preparing photo…' : previewUrl ||
+      pet.imageUrl ? 'Change photo' : 'Choose photo' }}
+    </button>
+    @if (previewUrl || pet.imageUrl) {
+    <button
+      class="text-button"
+      type="button"
+      (click)="removePhoto()"
+      [disabled]="saving || preparing"
+    >
+      Remove photo
+    </button>
+    }
+    <small>JPG, PNG, or WebP. Up to 10 MB.<br />A photo is optional.</small>
+    @if (photoError) {
+    <p class="message error" role="alert">{{ photoError }}</p>
+    }
+  </aside>
+  <section class="notebook-panel form-panel">
+    <div class="section-heading">
+      <h2>The little details</h2>
+      <span class="required-note">* Required</span>
+    </div>
+    <fieldset [disabled]="saving">
+      <div class="form-grid">
+        <label class="field"
+          >Pet’s name *<input
+            name="name"
+            [(ngModel)]="pet.name"
+            required
+            maxlength="80"
+            placeholder="What do you call your best friend?"
+            autocomplete="off"
+        /></label>
+        <label class="field"
+          >Type of pet *<select name="species" [(ngModel)]="pet.species" required>
+            <option>Dog</option>
+            <option>Cat</option>
+            <option>Rabbit</option>
+            <option>Bird</option>
+            <option>Other</option>
+          </select></label
+        >
+        <label class="field"
+          >Breed<input
+            name="breed"
+            [(ngModel)]="pet.breed"
+            maxlength="100"
+            placeholder="e.g. Golden retriever or mixed breed"
+        /></label>
+        <label class="field"
+          >Sex<select name="sex" [(ngModel)]="pet.sex">
+            <option value="Unknown">Not specified</option>
+            <option>Female</option>
+            <option>Male</option>
+          </select></label
+        >
+        <label class="field"
+          >Birthday<input type="date" name="birthday" [(ngModel)]="pet.birthday" [max]="today"
+        /></label>
+        <label class="field"
+          >Weight (kg)<input
+            type="number"
+            name="weight"
+            [(ngModel)]="pet.weightKg"
+            min="0.01"
+            max="1000"
+            step="0.01"
+            placeholder="e.g. 4.5"
+        /></label>
+        <label class="field full-width"
+          >Allergies & special care<input
+            name="allergies"
+            [(ngModel)]="pet.allergies"
+            maxlength="500"
+            placeholder="Food allergies, sensitivities, or things to remember"
+        /></label>
+        <label class="field full-width"
+          >A little about them<textarea
+            name="notes"
+            [(ngModel)]="pet.notes"
+            rows="4"
+            maxlength="2000"
+            placeholder="Their favorite toy, their quirks, or anything that makes them special."
+          ></textarea>
+        </label>
+      </div>
+    </fieldset>
+    @if (error) {
+    <p class="message error" role="alert">{{ error }}</p>
+    }
+    <div class="form-actions">
+      <a
+        class="button secondary"
+        [routerLink]="id ? ['/app/pets', id] : ['/app']"
+        [attr.aria-disabled]="saving"
+        [class.disabled-link]="saving"
+        >Cancel</a
+      ><button class="button primary" type="submit" [disabled]="saving || preparing">
+        @if (saving) { <ion-spinner name="crescent" /> } @else {
+        <ion-icon name="checkmark" aria-hidden="true" /> }{{ saving ? 'Saving their story…' : id ?
+        'Save changes' : 'Save pet profile' }}
+      </button>
+    </div>
+  </section>
+</form>
+}

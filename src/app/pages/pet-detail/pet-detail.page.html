@@ -1,0 +1,291 @@
+<a class="back-link" routerLink="/app"
+  ><ion-icon name="arrow-back" aria-hidden="true" /> Back to my pets</a
+>
+@if (loading) {
+<div class="loading-state" role="status">
+  <ion-spinner name="crescent" />
+  <p>Opening their little story…</p>
+</div>
+} @else { @if (error) {
+<div class="message error" role="alert">
+  {{ error }} <button class="text-button" type="button" (click)="load()">Try again</button>
+</div>
+} @if (pet) {
+<section class="pet-profile">
+  <div class="profile-avatar">
+    @if (pet.imageUrl) { <img [src]="pet.imageUrl" [alt]="pet.name" (error)="pet.imageUrl = ''" /> }
+    @else { <ion-icon name="paw" aria-hidden="true" /> }
+  </div>
+  <div class="profile-intro">
+    <span class="handwritten">A very important little someone.</span>
+    <h1>{{ pet.name }}<span class="heading-dot">.</span></h1>
+    <p>{{ pet.species }}<span class="dot-separator">·</span>{{ pet.breed || 'One of a kind' }}</p>
+    <div class="profile-facts">
+      <span>{{ petAge(pet.birthday) }}</span>@if (pet.sex !== 'Unknown') {
+      <span>{{ pet.sex }}</span> }@if (pet.weightKg != null) { <span>{{ pet.weightKg }} kg</span> }
+    </div>
+  </div>
+  <div class="profile-actions">
+    <a class="button secondary" [routerLink]="['/app/pets', pet.id, 'edit']"
+      ><ion-icon name="pencil" aria-hidden="true" /> Edit profile</a
+    ><button
+      class="icon-button danger-text"
+      type="button"
+      (click)="confirmDelete()"
+      aria-label="Delete pet profile"
+    >
+      <ion-icon name="trash" />
+    </button>
+  </div>
+</section>
+@if (pet.notes || pet.allergies || pet.birthday) {
+<div class="pet-notes">
+  @if (pet.notes) {
+  <div>
+    <h2>A little about {{ pet.name }}</h2>
+    <p class="preserve-lines">{{ pet.notes }}</p>
+  </div>
+  }@if (pet.allergies) {
+  <div class="care-note">
+    <h2>Keep in mind</h2>
+    <p class="preserve-lines">{{ pet.allergies }}</p>
+  </div>
+  }@if (pet.birthday) {
+  <div>
+    <h2>Birthday</h2>
+    <p>{{ pet.birthday | date:'MMMM d, y' }}</p>
+  </div>
+  }
+</div>
+}
+<section class="records-section">
+  <div class="section-heading">
+    <div>
+      <h2>Their care notebook<span class="heading-dot">.</span></h2>
+      <p>Every checkup and little milestone, all together.</p>
+    </div>
+    <button class="button primary" type="button" (click)="openRecord()">
+      <ion-icon name="add" aria-hidden="true" /> Add a record
+    </button>
+  </div>
+  <div class="filter-row record-tabs" aria-label="Filter care records">
+    <button
+      type="button"
+      [class.active]="filter === 'all'"
+      [attr.aria-pressed]="filter === 'all'"
+      (click)="filter = 'all'"
+    >
+      All records <span>{{ records.length }}</span>
+    </button>
+    <button
+      type="button"
+      [class.active]="filter === 'vaccination'"
+      [attr.aria-pressed]="filter === 'vaccination'"
+      (click)="filter = 'vaccination'"
+    >
+      Vaccinations <span>{{ count('vaccination') }}</span>
+    </button>
+    <button
+      type="button"
+      [class.active]="filter === 'medical'"
+      [attr.aria-pressed]="filter === 'medical'"
+      (click)="filter = 'medical'"
+    >
+      Medical history <span>{{ count('medical') }}</span>
+    </button>
+    <button
+      type="button"
+      [class.active]="filter === 'health'"
+      [attr.aria-pressed]="filter === 'health'"
+      (click)="filter = 'health'"
+    >
+      Health notes <span>{{ count('health') }}</span>
+    </button>
+  </div>
+  <div class="record-list">
+    @for (item of filteredRecords; track item.id) {
+    <article class="record-card">
+      <div class="record-icon" [class.health]="item.category === 'health'">
+        <ion-icon [name]="icon(item.category)" aria-hidden="true" />
+      </div>
+      <div class="record-body">
+        <div class="record-meta">
+          <span>{{ labels[item.category] }}</span
+          ><time [attr.datetime]="item.date">{{ item.date | date:'MMM d, y' }}</time>
+        </div>
+        <h3>{{ item.title }}</h3>
+        @if (item.veterinarian) {
+        <p>{{ item.veterinarian }}</p>
+        }@if (item.weightKg != null) {
+        <p>Weight: <strong>{{ item.weightKg }} kg</strong></p>
+        }@if (item.notes) {
+        <p class="record-notes preserve-lines">{{ item.notes }}</p>
+        }@if (item.nextDate) {
+        <span class="due-label" [class.overdue]="item.nextDate < today"
+          ><ion-icon name="calendar" aria-hidden="true" />{{ item.nextDate < today ? 'Overdue since'
+          : 'Next due' }} {{ item.nextDate | date:'MMM d, y' }}</span
+        >
+        }
+      </div>
+      <div class="record-actions">
+        <button
+          class="icon-button"
+          type="button"
+          (click)="openRecord(item)"
+          [attr.aria-label]="'Edit ' + item.title"
+        >
+          <ion-icon name="pencil" /></button
+        ><button
+          class="icon-button danger-text"
+          type="button"
+          (click)="confirmDelete(item)"
+          [attr.aria-label]="'Delete ' + item.title"
+        >
+          <ion-icon name="trash" />
+        </button>
+      </div>
+    </article>
+    } @empty {
+    <div class="empty-state">
+      <div class="empty-paw"><ion-icon name="document-text" aria-hidden="true" /></div>
+      <h3>A fresh page for {{ pet.name }}</h3>
+      <p>
+        {{ records.length ? 'No records in this category yet.' : 'First vaccine? Annual checkup?
+        Start their care story here.' }}
+      </p>
+      <button class="button secondary" type="button" (click)="openRecord()">
+        <ion-icon name="add" aria-hidden="true" /> Add a care record
+      </button>
+    </div>
+    }
+  </div>
+</section>
+} }
+
+<dialog
+  #recordDialog
+  class="dialog record-dialog"
+  aria-labelledby="record-title"
+  (cancel)="preventBusyClose($event, saving)"
+>
+  <div class="dialog-heading">
+    <div>
+      <span class="handwritten">A little note of care.</span>
+      <h2 id="record-title">{{ editingRecordId ? 'Edit care record' : 'Add a care record' }}</h2>
+    </div>
+    <button
+      class="icon-button"
+      type="button"
+      aria-label="Close record form"
+      (click)="recordDialog.close()"
+      [disabled]="saving"
+    >
+      <ion-icon name="close" />
+    </button>
+  </div>
+  <form #recordForm="ngForm" ngNativeValidate (ngSubmit)="saveRecord(recordForm)">
+    <fieldset [disabled]="saving">
+      <div class="form-grid">
+        <label class="field full-width"
+          >Type of record *<select name="category" [(ngModel)]="record.category" required>
+            <option value="vaccination">Vaccination</option>
+            <option value="medical">Medical visit</option>
+            <option value="health">Health note</option>
+          </select></label
+        >
+        <label class="field full-width"
+          >{{ record.category === 'vaccination' ? 'Vaccine name' : record.category === 'medical' ?
+          'Visit or treatment' : 'Note title' }} *<input
+            name="title"
+            [(ngModel)]="record.title"
+            required
+            maxlength="150"
+            [placeholder]="record.category === 'vaccination' ? 'e.g. Rabies vaccination' : record.category === 'medical' ? 'e.g. Annual checkup' : 'e.g. Monthly weight check'"
+        /></label>
+        <label class="field"
+          >Date *<input type="date" name="date" [(ngModel)]="record.date" required [max]="today"
+        /></label>
+        <label class="field"
+          >Next due date<input
+            type="date"
+            name="nextDate"
+            [(ngModel)]="record.nextDate"
+            [min]="record.date"
+          /><small>Optional. Adds a care reminder.</small></label
+        >
+        @if (record.category === 'health') {
+        <label class="field full-width"
+          >Weight (kg)<input
+            type="number"
+            name="weightKg"
+            [(ngModel)]="record.weightKg"
+            min="0.01"
+            max="1000"
+            step="0.01"
+            placeholder="e.g. 4.5"
+        /></label>
+        }
+        <label class="field full-width"
+          >Veterinarian / clinic<input
+            name="veterinarian"
+            [(ngModel)]="record.veterinarian"
+            maxlength="150"
+            placeholder="Who looked after them?"
+        /></label>
+        <label class="field full-width"
+          >Notes<textarea
+            name="notes"
+            [(ngModel)]="record.notes"
+            rows="3"
+            maxlength="3000"
+            placeholder="Symptoms, treatment, vaccine details, or anything to remember."
+          ></textarea>
+        </label>
+      </div>
+    </fieldset>
+    @if (recordError) {
+    <p class="message error" role="alert">{{ recordError }}</p>
+    }
+    <div class="form-actions">
+      <button
+        class="button secondary"
+        type="button"
+        (click)="recordDialog.close()"
+        [disabled]="saving"
+      >
+        Cancel</button
+      ><button class="button primary" type="submit" [disabled]="saving">
+        @if (saving) { <ion-spinner name="crescent" /> }{{ saving ? 'Saving…' : 'Save record' }}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<dialog
+  #deleteDialog
+  class="dialog small-dialog"
+  aria-labelledby="delete-title"
+  (cancel)="preventBusyClose($event, deleting)"
+>
+  <div class="delete-symbol"><ion-icon name="trash" aria-hidden="true" /></div>
+  <h2 id="delete-title">
+    {{ deleteRecordTarget ? 'Remove this care record?' : 'Remove this pet profile?' }}
+  </h2>
+  <p>
+    {{ deleteRecordTarget ? '“' + deleteRecordTarget.title + '” will be permanently removed from
+    this notebook.' : 'This will permanently remove ' + (pet?.name || 'this pet') + ' and all their
+    vaccination, medical, and health records.' }}
+  </p>
+  <div class="form-actions">
+    <button
+      class="button secondary"
+      type="button"
+      (click)="deleteDialog.close()"
+      [disabled]="deleting"
+    >
+      Keep it</button
+    ><button class="button danger" type="button" (click)="deleteItem()" [disabled]="deleting">
+      {{ deleting ? 'Removing…' : 'Yes, remove' }}
+    </button>
+  </div>
+</dialog>

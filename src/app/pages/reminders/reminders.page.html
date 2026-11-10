@@ -1,0 +1,74 @@
+<div class="page-heading">
+  <div>
+    <span class="handwritten">A little nudge, a lot of care.</span>
+    <h1>Care reminders<span class="heading-dot">.</span></h1>
+    <p>Upcoming vaccines, follow-ups, and dates worth remembering.</p>
+  </div>
+  <a class="button secondary" routerLink="/app"
+    ><ion-icon name="paw" aria-hidden="true" /> Back to my pets</a
+  >
+</div>
+@if (loading) {
+<div class="loading-state" role="status">
+  <ion-spinner name="crescent" />
+  <p>Checking their care dates…</p>
+</div>
+} @else { @if (error) {
+<div class="message error" role="alert">
+  {{ error }} <button class="text-button" type="button" (click)="load()">Try again</button>
+</div>
+} @if (!error || records.length) { @if (records.length) {
+<div class="reminder-summary">
+  <ion-icon name="calendar" aria-hidden="true" />
+  <p>
+    <strong>{{ records.length }} care {{ records.length === 1 ? 'date' : 'dates' }}</strong> in your
+    notebook. @if (overdueCount) {
+    <span class="danger-text"
+      >{{ overdueCount }} {{ overdueCount === 1 ? 'needs' : 'need' }} a little attention.</span
+    >
+    } @else { A little planning goes a long way. }
+  </p>
+</div>
+<div class="reminder-list">
+  @for (record of records; track record.id) {
+  <article class="reminder-row">
+    <span class="date-tile" [class.is-overdue]="record.nextDate < today"
+      ><strong>{{ record.nextDate | date:'d' }}</strong>{{ record.nextDate | date:'MMM y' }}</span
+    >
+    <div class="reminder-body">
+      <span class="record-category">{{ labels[record.category] }}</span>
+      <h2>{{ record.title }}</h2>
+      <a [routerLink]="['/app/pets', record.petId]"
+        >For {{ petName(record.petId) }} <ion-icon name="chevron-forward" aria-hidden="true"
+      /></a>
+    </div>
+    <span class="due-label" [class.overdue]="record.nextDate < today"
+      >{{ record.nextDate < today ? 'Overdue' : record.nextDate === today ? 'Due today' : 'Coming
+      up' }}</span
+    ><button
+      class="button secondary"
+      type="button"
+      (click)="markDone(record)"
+      [disabled]="!!savingId"
+    >
+      <ion-icon name="checkmark" aria-hidden="true" />{{ savingId === record.id ? 'Saving…' : 'Mark
+      done' }}
+    </button>
+  </article>
+  }
+</div>
+<p class="help-note">
+  Marking a reminder done keeps the original care record. Add the next date from your pet’s profile
+  whenever you’re ready.
+</p>
+} @else {
+<div class="empty-state roomy">
+  <div class="empty-paw sage"><ion-icon name="calendar" aria-hidden="true" /></div>
+  <h2>Nothing on the calendar just yet</h2>
+  <p>
+    Add a next due date to a vaccination, medical visit, or health note. Their care dates will
+    appear here.
+  </p>
+  <a class="button primary" routerLink="/app">Open my pets’ notebooks</a>
+</div>
+} } }
