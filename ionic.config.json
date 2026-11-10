@@ -1,1 +1,1 @@
-{ "name": "Petcare", "type": "angular", "integrations": {} }
+{ "name": "Petcare", "type": "angular", "integrations": { "capacitor": {} } }

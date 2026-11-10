@@ -6,7 +6,10 @@
   "scripts": {
     "start": "ng serve --host 127.0.0.1 --port 8100",
     "build": "ng build",
-    "test": "playwright test"
+    "test": "playwright test",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android",
+    "android:qr": "node scripts/generate-download-qr.mjs"
   },
   "dependencies": {
     "@angular/animations": "~20.3.35",
@@ -28,7 +31,9 @@
     "@angular/build": "~20.3.42",
     "@angular/cli": "~20.3.42",
     "@angular/compiler-cli": "~20.3.35",
+    "@capacitor/cli": "8.6.0",
     "@playwright/test": "^1.56.0",
+    "qrcode": "1.5.4",
     "typescript": "~5.9.2"
   }
 }
