@@ -1,10 +1,7 @@
 export const environment = {
-  firebase: {
-    apiKey: 'AIzaSyAUD-pkFEtkEHnCp0UAC7H8QmfoRq9YBvY',
-    projectId: 'petclinic-e4c37',
-  },
-  cloudinary: {
-    cloudName: 'o8wnfkuc',
-    uploadPreset: 'petcare',
+  supabase: {
+    url: 'https://hykutdgbuycbfquefice.supabase.co',
+    publishableKey: 'sb_publishable_iiPy0P0yJLhkWmRW1WUnyQ_rm4SWe83',
+    photoBucket: 'pet-photos',
   },
 };

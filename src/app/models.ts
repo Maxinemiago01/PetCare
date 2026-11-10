@@ -9,7 +9,7 @@ export interface Pet {
   allergies: string;
   notes: string;
   imageUrl: string;
-  imagePublicId: string;
+  imagePath: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -25,7 +25,7 @@ export class PetFormPage implements OnInit, OnDestroy {
     allergies: '',
     notes: '',
     imageUrl: '',
-    imagePublicId: '',
+    imagePath: '',
     createdAt: '',
     updatedAt: '',
   };
@@ -88,7 +88,7 @@ export class PetFormPage implements OnInit, OnDestroy {
     this.clearPreview();
     this.photo = null;
     this.pet.imageUrl = '';
-    this.pet.imagePublicId = '';
+    this.pet.imagePath = '';
   }
 
   private clearPreview(): void {
@@ -106,9 +106,8 @@ export class PetFormPage implements OnInit, OnDestroy {
     this.saving = true;
     try {
       if (this.photo) {
-        Object.assign(this.pet, await this.images.upload(this.photo));
+        this.pet.imagePath = await this.images.upload(this.photo);
         this.photo = null;
-        this.clearPreview();
       }
       const now = new Date().toISOString();
       const saved = await this.pets.savePet(

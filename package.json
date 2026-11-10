@@ -2,7 +2,7 @@
   "name": "petcare",
   "version": "1.0.0",
   "private": true,
-  "description": "A simple Ionic Angular pet notebook using Firebase and Cloudinary REST APIs.",
+  "description": "A simple Ionic Angular pet notebook using Supabase REST APIs.",
   "scripts": {
     "start": "ng serve --host 127.0.0.1 --port 8100",
     "build": "ng build",
@@ -16,6 +16,8 @@
     "@angular/forms": "~20.3.35",
     "@angular/platform-browser": "~20.3.35",
     "@angular/router": "~20.3.35",
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
     "@fontsource/nunito": "^5.2.0",
     "@ionic/angular": "9.0.10",
     "ionicons": "^8.0.0",

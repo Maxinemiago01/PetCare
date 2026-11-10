@@ -1,146 +1,143 @@
 # Petcare
 
-A beginner-friendly Ionic Angular standalone app: a digital notebook for your pets. All authentication, database, and photo-upload requests use Angular `HttpClient` and REST endpoints. There is no Firebase SDK or separate backend server.
+A beginner-friendly Ionic Angular standalone app with Supabase for accounts, pet records, and private photos. The app uses Angular `HttpClient` and REST requests.
 
-## Run the app
+## Run
 
-Use Node.js 22.12+ or 24 and npm. Dependencies have already been installed in this workspace.
+Dependencies are already installed in this workspace.
 
 ```powershell
 npm install
 ionic serve
 ```
 
-If you do not have the Ionic CLI installed, `npm start` also serves the same app at http://127.0.0.1:8100. To install the CLI globally, run `npm install -g @ionic/cli`.
+Keep the terminal open while using the app. Open the URL printed by Ionic; if port 8100 is occupied, Ionic can choose 8101.
+
+You can also use `npm start` at http://127.0.0.1:8100.
 
 ```powershell
 npm run build
 npm test
 ```
 
-The production build is written to `www/`. Tests use Chrome when installed at its usual Windows location; on another computer, run `npx playwright install chromium` once before `npm test`.
+The production app goes into `www/`. Browser tests use Chrome at its standard Windows location. On another computer, install the test browser once with `npx playwright install chromium`.
 
-This project uses Ionic 9 and Angular 20. In Ionic 9, standalone components are imported from `@ionic/angular` directly. The components in this app are all standalone; there is no `AppModule`.
+This project uses Ionic 9 and Angular 20. All app components are standalone.
 
-## One-time Firebase setup
+## Supabase project
 
-Your project ID and web API key are already configured in `src/environments/environment.ts`.
+Project: **PetCare**
 
-Authentication, Firestore CRUD, and owner-only access have now been verified with live REST requests for this project. The steps below are retained as setup instructions for reuse.
+Project URL: https://hykutdgbuycbfquefice.supabase.co
 
-1. Open [Firebase Authentication](https://console.firebase.google.com/project/petclinic-e4c37/authentication/providers). Enable **Email/Password** under sign-in providers.
-2. Open [Cloud Firestore](https://console.firebase.google.com/project/petclinic-e4c37/firestore). Create the default **Standard edition** database if it does not exist. Choose an available location suitable for your project. Firebase Storage is not used.
-3. Open the Firestore **Rules** tab. Copy the contents of `firestore.rules` and click **Publish**. These rules let a signed-in user access only the data under their own Firebase user ID. Do not leave the database open in test mode.
-4. Start the app, create an account, and add your first pet.
+The URL, publishable key, and bucket name are in `src/environments/environment.ts`. The publishable key is intended for client apps. Never put a database password, secret key, or service-role key in the frontend.
 
-The configuration identifies the Firebase project; it does not enable authentication, create the database, or publish rules automatically. These console changes require access to your Firebase account.
+The app starts fresh in Supabase. Existing Firebase accounts, records, and Cloudinary photos are not imported or deleted. Create a Supabase account to use this version.
 
-## Cloudinary setup
+## Database setup
 
-Your supplied settings are already in `src/environments/environment.ts`:
+The complete database setup is in `supabase/setup.sql`. It creates:
 
-```text
-Cloud name: o8wnfkuc
-Upload preset: petcare
-```
+- `pets`: profiles belonging to a signed-in account.
+- `pet_records`: vaccinations, medical visits, and health notes.
+- `pet-photos`: a private storage bucket.
+- Row-level security policies for owner-only access.
+- A foreign key that deletes a pet's records automatically when its profile is deleted.
 
-In Cloudinary Console, open Settings > Upload > Upload presets. Verify that `petcare` exists and its signing mode is **Unsigned**. Restrict allowed formats to JPG, JPEG, PNG, and WebP. You can also enable `disallow_public_id` and normalize dimensions with an incoming transformation.
+If creating another project, run the script in that project's SQL Editor, then update the environment file. Running the app does not create tables automatically.
 
-The app rejects selected files larger than 10 MB and converts accepted images to JPEG with a maximum dimension of 800 pixels before upload. Cloudinary upload presets do not enforce a per-preset file-size limit; the app's size check is a convenience, not a server-side security boundary.
+The quoted SQL names, such as `"petId"` and `"weightKg"`, match the existing TypeScript models. This keeps the API responses usable directly without another data-conversion layer.
 
-No Cloudinary API secret belongs in this app. Unsigned upload presets are discoverable in browser requests. This simple approach is intended for the school demo. Normal image links are public to anyone who has the link.
+## Authentication setup
 
-## Features
+Email/password sign-in is enabled. Under **Authentication > Sign In / Providers > Email**, turn **Confirm email** OFF. This was verified on the supplied project.
 
-- Email/password registration, login, logout, and password-reset email requests.
-- Session storage and automatic token refresh. Passwords are not saved by the app.
-- Create, view, edit, search, filter, and delete multiple pet profiles.
-- Optional compressed pet profile photos, uploaded automatically to Cloudinary.
-- Vaccination records, medical visits, and health notes, with editing and deletion.
-- Optional weights, veterinarian details, notes, and next due dates on care records.
-- In-app reminders sorted by date, including overdue dates and marking reminders done.
-- Responsive desktop navigation and phone bottom navigation.
-- Loading, empty, validation, confirmation, and error states.
+Users can register with a made-up address such as `alex@petcare.test` and a password of at least six characters. The address is their login ID and must still use email format. Registration signs them in immediately.
 
-Reminders are shown inside the app. The app does not send push notifications or scheduled emails. Marking a reminder done clears its next due date and keeps the original care record.
+The app checks the confirmation setting before registering. If confirmation is turned on again, it shows a setup message instead of requesting an email.
 
-## Where the code lives
+There are no verification or password-reset emails in this demo. Remember the login ID and password. Existing Auth redirect URLs can remain configured, but this version does not use email callbacks.
+
+## Simple code structure
 
 ```text
 src/app/
-  app.routes.ts            Page routes and login protection
-  auth.guard.ts            Checks the sign-in session
-  models.ts                Pet and care-record interfaces
+  models.ts                 Pet and care-record interfaces
+  app.routes.ts             Routes
+  auth.guard.ts             Sign-in protection
   services/
-    auth.service.ts        Firebase Authentication REST calls
-    pet.service.ts         Firestore REST CRUD and value conversion
-    image.service.ts       Image resizing and Cloudinary REST upload
-    errors.ts              Readable API error messages
+    auth.service.ts         Signup, login, logout, token refresh
+    pet.service.ts          GET, POST, PATCH, DELETE for plain JSON records
+    image.service.ts        Prepare and upload photos; request temporary links
+    errors.ts               Readable error messages
   pages/
-    auth/                  Login, registration, and password reset
-    shell/                 Shared navigation and account controls
-    home/                  Pet notebook overview, search, and filters
-    pet-form/              Add and edit a pet
-    pet-detail/            Pet profile and care-record forms
-    reminders/             Care dates and reminder completion
-    privacy/               Demo privacy and terms
+    auth/                   Login and registration
+    shell/                  Shared navigation
+    home/                   Pet list, search, and species filters
+    pet-form/               Add and edit profiles
+    pet-detail/             Pet details and care records
+    reminders/              Due dates and reminder completion
+    privacy/                Demo privacy information
 src/environments/
-  environment.ts           Firebase and Cloudinary configuration
-src/global.scss            App styles and responsive layouts
-public/assets/             The images supplied for this project
-firestore.rules            Owner-only database access
-tests/petcare.spec.ts       Browser tests using simulated REST APIs
+  environment.ts            Supabase public configuration
+supabase/
+  setup.sql                 Tables, access policies, private photo bucket
+tests/
+  petcare.spec.ts            Browser tests with simulated Supabase APIs
 ```
 
-Forms use `ngModel` and straightforward `async/await` functions. `firstValueFrom` lets a function await an Angular HTTP request without nested subscriptions. The only Firestore-specific data conversion is in `PetService`, because its REST API represents values using fields such as `stringValue` and `doubleValue`.
+Forms use `ngModel`, and service methods use straightforward `async/await`. `firstValueFrom` makes an Angular HTTP request awaitable.
 
-## Database structure
+`PetService` sends and receives ordinary objects. For example, a profile contains `name`, `species`, and `imagePath`. A care record contains `petId`, `category`, `title`, `date`, and `nextDate`.
 
-```text
-users/{firebaseUserId}/pets/{petId}
-  name, species, breed, sex, birthday, weightKg
-  allergies, notes, imageUrl, imagePublicId, createdAt, updatedAt
+## REST calls
 
-users/{firebaseUserId}/records/{recordId}
-  petId, category, title, date, nextDate
-  veterinarian, weightKg, notes, createdAt
-```
+All endpoints start with the project's URL.
 
-Records live in one collection per user. `petId` connects each record to its pet; `category` is `vaccination`, `medical`, or `health`. For a small demo this makes the code easy to follow: load the user's records, then filter them in the app. Lists support Firestore pagination.
+| Action                      | Request                                                    |
+| --------------------------- | ---------------------------------------------------------- |
+| Register                    | `POST /auth/v1/signup`                                     |
+| Login                       | `POST /auth/v1/token?grant_type=password`                  |
+| Refresh session             | `POST /auth/v1/token?grant_type=refresh_token`             |
+| Log out                     | `POST /auth/v1/logout?scope=local`                         |
+| List pets                   | `GET /rest/v1/pets`                                        |
+| Get one pet                 | `GET /rest/v1/pets?id=eq.PET_ID`                           |
+| Create pet                  | `POST /rest/v1/pets`                                       |
+| Edit pet                    | `PATCH /rest/v1/pets?id=eq.PET_ID`                         |
+| Delete pet                  | `DELETE /rest/v1/pets?id=eq.PET_ID`                        |
+| Care records                | The same methods on `/rest/v1/pet_records`                 |
+| Upload photo                | `POST /storage/v1/object/pet-photos/USER_ID/FILE.jpg`      |
+| Create temporary photo link | `POST /storage/v1/object/sign/pet-photos/USER_ID/FILE.jpg` |
 
-## REST requests used
+Requests identify the app using an `apikey` header. Protected requests also identify the user using `Authorization: Bearer <access token>`. The publishable key is not used as a bearer token.
 
-| Action | Request |
-| --- | --- |
-| Register | `POST https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=...` |
-| Login | `POST https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=...` |
-| Reset password | `POST https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=...` |
-| Refresh token | `POST https://securetoken.googleapis.com/v1/token?key=...` |
-| List pets or records | `GET {documentsUrl}/users/{uid}/pets` or `/records` |
-| Get one pet | `GET {documentsUrl}/users/{uid}/pets/{id}` |
-| Create | `POST {documentsUrl}/users/{uid}/{collection}` |
-| Update | `PATCH {documentsUrl}/users/{uid}/{collection}/{id}` |
-| Delete | `DELETE {documentsUrl}/users/{uid}/{collection}/{id}` |
-| Upload photo | `POST https://api.cloudinary.com/v1_1/o8wnfkuc/image/upload` |
+List filters improve the request, but database row-level security is what enforces ownership. Clients cannot access another owner's records simply by changing the URL.
 
-`documentsUrl` is `https://firestore.googleapis.com/v1/projects/petclinic-e4c37/databases/(default)/documents`. Firestore requests include `Authorization: Bearer <Firebase ID token>`. Updates require an existing document, preventing an edit from recreating a profile deleted elsewhere.
+## Photos
 
-## Photo and deletion behavior
+The app accepts JPG, PNG, and WebP files up to 10 MB. Before upload, it converts the image to JPEG, limits the longest dimension to 800 pixels, and uses 82% quality. The storage bucket independently limits uploads to 2 MB and JPEG content.
 
-Photos go to Cloudinary; only the image URL and public ID go to Firestore. If photo upload succeeds but the database save fails, a retry in the same form reuses the uploaded image instead of uploading it twice.
+Files are stored at `USER_ID/RANDOM_ID.jpg`. Only `imagePath` is saved in the pet table. The app gets a temporary photo URL valid for one hour when loading profiles. Anyone holding that URL can view the image until it expires, so avoid sharing it.
 
-Firestore does not cascade deletes. The app deletes a pet's care records first, then its profile. If any deletion fails, it stops and shows an error; retry after checking the connection. This simple sequence is not an atomic operation.
+If upload succeeds but saving the profile fails, the form keeps the uploaded path and preview. Retrying does not upload the same selected image again.
 
-Replacing a photo, removing a photo, or deleting a pet does not delete the original Cloudinary file. Clean up unused photos manually in Cloudinary for this demo. Fully automated secure cleanup and protection against unsigned-upload abuse would require a trusted backend.
+For this simple demo, removing or replacing a profile photo does not delete its old file from storage. Old files stay private and still count toward storage usage. The project owner can clean up unused files in the Supabase Storage dashboard.
 
-## Verification scope
+## Other behavior
 
-`npm test` runs browser tests with simulated Firebase and Cloudinary REST responses. They verify the request methods, owner-specific paths, bearer tokens, photo multipart payload, CRUD flows, retries, token refresh, and responsive layouts without creating accounts or uploading files to your live services. See `docs/verification.md` for recorded results and the limits of live verification.
+- Deleting a pet and its care records is one database transaction.
+- Marking a reminder done clears its next due date and keeps the original care record.
+- Reminders are displayed inside the app; there are no scheduled email or push reminders.
+- Session tokens are kept in the browser's session storage. Passwords are not stored by the app.
+- Firebase sessions are not reused for Supabase.
 
-## Reference documentation
+## Verification
 
-- [Firebase Authentication REST API](https://firebase.google.com/docs/reference/rest/auth)
-- [Firestore REST API and authentication](https://firebase.google.com/docs/firestore/use-rest-api)
-- [Cloudinary browser uploads](https://cloudinary.com/documentation/client_side_uploading)
-- [Cloudinary upload presets](https://cloudinary.com/documentation/upload_presets)
-- [Ionic 9 import changes](https://github.com/ionic-team/ionic-framework/blob/main/BREAKING.md)
+`npm test` simulates Supabase responses and checks authentication, CRUD, private-photo requests, retries, pagination, and responsive screens. It does not send emails or upload files to the live account. See `docs/verification.md` for the latest results and live verification scope.
+
+## References
+
+- [Supabase REST API](https://supabase.com/docs/guides/api)
+- [API keys](https://supabase.com/docs/guides/getting-started/api-keys)
+- [Row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+- [Storage access control](https://supabase.com/docs/guides/storage/security/access-control)
