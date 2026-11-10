@@ -9,7 +9,7 @@ The app uses Capacitor to package the Angular build as an Android app. Supabase 
 
 ![Scan to download Petcare](../downloads/petcare-download-qr.png)
 
-These links become available after the first successful GitHub Actions build.
+The APK and QR are published. The [verified build](https://github.com/Maxinemiago01/PetCare/actions/runs/42266968593) completed successfully on November 7, 2026 (Asia/Manila).
 
 On an Android phone, scan the QR, download the APK, open it, and allow installation from the browser when Android asks. Then install Petcare and create an account. The app needs internet to use Supabase.
 
@@ -62,6 +62,18 @@ npm run android:qr -- https://github.com/Maxinemiago01/PetCare
 Gradle automatically signs this classroom APK with a debug key on the build runner. Signing keys are excluded from Git. A Play Store release needs its own private release signing configuration.
 
 Each clean build runner can use a different debug key. If Android says an existing version has an incompatible signature, uninstall that older copy before installing the new one. Uninstalling clears its local sign-in session; Supabase records stay under the account.
+
+## Verification
+
+- PASS: the production Angular build and Capacitor Android sync completed.
+- PASS: GitHub Actions built and published the Android APK.
+- PASS: the public APK download returned HTTP 200; its SHA-256 matched the published checksum.
+- PASS: the 6,312,401-byte APK contains the native manifest, application code, bundled web page, and the `com.petcare.notebook` configuration. It does not point to a local development server.
+- PASS: the published QR PNG was decoded independently and matches the exact APK download URL.
+- PASS: the responsive browser scenario passed at five widths after the Android viewport adjustment.
+- PASS: no signing key is tracked in Git.
+
+Installation and use on a physical Android phone have not been tested here.
 
 ## References
 
