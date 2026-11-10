@@ -69,4 +69,6 @@ jobs:
           fi
           gh release upload android-demo downloads/petcare.apk downloads/petcare-download-qr.png downloads/download-url.txt downloads/petcare.apk.sha256 --clobber
           gh release edit android-demo --notes-file downloads/release-notes.md
-          echo "APK and QR: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/android-demo" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show download QR and APK link in the run summary
+        run: cat downloads/release-notes.md >> "$GITHUB_STEP_SUMMARY"
