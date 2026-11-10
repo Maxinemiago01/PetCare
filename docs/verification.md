@@ -15,6 +15,8 @@ Browser tests intercept Supabase HTTP requests. They assert the publishable API 
 
 ## Android packaging and download
 
+- PASS: the [workflow summary update](https://github.com/Maxinemiago01/PetCare/actions/runs/42268279259) completed successfully, including the step that appends the generated QR image and APK-link Markdown to `GITHUB_STEP_SUMMARY`. The signed-out preview browser did not expose the job summary for visual inspection.
+
 - PASS: [GitHub Actions build](https://github.com/Maxinemiago01/PetCare/actions/runs/42266968593) compiled the Android APK and published the release files.
 - PASS: the public APK and QR downloads return HTTP 200. The APK's SHA-256 matches the published checksum.
 - PASS: APK archive inspection found the native manifest, compiled application code, bundled web app, and correct package ID, without a local development-server URL.

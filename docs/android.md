@@ -9,7 +9,7 @@ The app uses Capacitor to package the Angular build as an Android app. Supabase 
 
 ![Scan to download Petcare](../downloads/petcare-download-qr.png)
 
-The APK and QR are published. The [verified build](https://github.com/Maxinemiago01/PetCare/actions/runs/42266968593) completed successfully on November 7, 2026 (Asia/Manila).
+The APK and QR are published. The [verified build](https://github.com/Maxinemiago01/PetCare/actions/runs/42268279259) completed successfully on November 7, 2026 (Asia/Manila), including the QR summary step.
 
 On an Android phone, scan the QR, download the APK, open it, and allow installation from the browser when Android asks. Then install Petcare and create an account. The app needs internet to use Supabase.
 
@@ -17,7 +17,7 @@ On an Android phone, scan the QR, download the APK, open it, and allow installat
 
 The workflow is `.github/workflows/android.yml`. Pushing to `main` or `master` starts it automatically. You can also open **Actions > Build Android APK > Run workflow**.
 
-After the build finishes, open that workflow run's **Summary** page. The job summary displays the download QR image and a clickable APK link. The APK and QR image are also included in the `petcare-android` artifact and the Android demo release.
+After the build finishes, sign in to GitHub and open that workflow run's **Summary** page. The job summary displays the download QR image and a clickable APK link. The APK and QR image are also included in the `petcare-android` artifact and the Android demo release.
 
 It installs Node 24, Java 21, and Android SDK 36; builds the Angular app; copies it into Android; builds a signed debug APK; generates the QR; and uploads both files to the **Petcare Android demo** release. No extra GitHub secrets are required.
 
