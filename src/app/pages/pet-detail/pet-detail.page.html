@@ -207,8 +207,8 @@
             type="date"
             name="nextDate"
             [(ngModel)]="record.nextDate"
-            [min]="record.date"
-          /><small>Optional. Adds a care reminder.</small></label
+            [min]="today"
+          /><small>Optional. Choose today or a future date.</small></label
         >
         @if (record.category === 'health') {
         <label class="field full-width"
@@ -251,7 +251,12 @@
         [disabled]="saving"
       >
         Cancel</button
-      ><button class="button primary" type="submit" [disabled]="saving">
+      ><button
+        class="button primary"
+        type="submit"
+        [attr.formnovalidate]="keepsOverdueDate ? '' : null"
+        [disabled]="saving"
+      >
         @if (saving) { <ion-spinner name="crescent" /> }{{ saving ? 'Saving…' : 'Save record' }}
       </button>
     </div>
