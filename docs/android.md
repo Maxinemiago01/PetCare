@@ -17,6 +17,8 @@ On an Android phone, scan the QR, download the APK, open it, and allow installat
 
 The workflow is `.github/workflows/android.yml`. Pushing to `main` or `master` starts it automatically. You can also open **Actions > Build Android APK > Run workflow**.
 
+After the build finishes, open that workflow run's **Summary** page. The job summary displays the download QR image and a clickable APK link. The APK and QR image are also included in the `petcare-android` artifact and the Android demo release.
+
 It installs Node 24, Java 21, and Android SDK 36; builds the Angular app; copies it into Android; builds a signed debug APK; generates the QR; and uploads both files to the **Petcare Android demo** release. No extra GitHub secrets are required.
 
 The repository must be public for classmates to download without signing into GitHub. The workflow's `contents: write` permission allows it to publish release files. If repository policy blocks this, enable read and write workflow permissions under **Settings > Actions > General**.
