@@ -1,0 +1,76 @@
+<ion-content #content>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <a routerLink="/app" class="brand"
+        ><img src="assets/paw.png" alt="" /><span>petcare<span class="brand-dot">.</span></span></a
+      >
+      <p class="sidebar-subtitle">Your pet’s little notebook</p>
+      <nav aria-label="Main navigation" class="desktop-nav">
+        <a
+          routerLink="/app"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ariaCurrentWhenActive="page"
+          ><ion-icon name="paw" aria-hidden="true" /> My pets</a
+        >
+        <a routerLink="/app/reminders" routerLinkActive="active" ariaCurrentWhenActive="page"
+          ><ion-icon name="calendar" aria-hidden="true" /> Care reminders</a
+        >
+      </nav>
+      <div class="sidebar-note">
+        <ion-icon name="heart" aria-hidden="true" />
+        <p>For every checkup,<br />and every cuddle.</p>
+        <span>A little care, every day.</span>
+      </div>
+      <div class="sidebar-account">
+        <span class="account-avatar">{{ auth.email.charAt(0).toUpperCase() }}</span>
+        <div><strong>Pet parent</strong><span class="account-email">{{ auth.email }}</span></div>
+      </div>
+      <button class="logout-button" type="button" (click)="logout()">
+        <ion-icon name="log-out" aria-hidden="true" /> Log out
+      </button>
+      <a routerLink="/privacy" class="sidebar-privacy">Privacy & terms</a>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <span class="desktop-date">{{ now | date:'EEEE, MMMM d, y' }}</span>
+        <a class="brand mobile-brand" routerLink="/app"
+          ><img src="assets/paw.png" alt="" /><span>petcare.</span></a
+        >
+        <div class="topbar-right">
+          <span class="topbar-greeting">Hello, {{ auth.firstName }}!</span
+          ><span class="account-avatar small">{{ auth.email.charAt(0).toUpperCase() }}</span
+          ><button
+            class="icon-button mobile-logout"
+            type="button"
+            (click)="logout()"
+            aria-label="Log out"
+          >
+            <ion-icon name="log-out" />
+          </button>
+        </div>
+      </header>
+      <main class="page-content" id="main-content">
+        <router-outlet (activate)="content.scrollToTop(0)" />
+      </main>
+      <footer class="workspace-footer">
+        <span>Made for the love of little paws.</span><a routerLink="/privacy">Privacy & terms</a>
+      </footer>
+    </div>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a
+        routerLink="/app"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        ariaCurrentWhenActive="page"
+        ><ion-icon name="paw" aria-hidden="true" /><span>My pets</span></a
+      >
+      <a routerLink="/app/pets/new" routerLinkActive="active" ariaCurrentWhenActive="page"
+        ><ion-icon name="add" aria-hidden="true" /><span>Add pet</span></a
+      >
+      <a routerLink="/app/reminders" routerLinkActive="active" ariaCurrentWhenActive="page"
+        ><ion-icon name="calendar" aria-hidden="true" /><span>Reminders</span></a
+      >
+    </nav>
+  </div>
+</ion-content>

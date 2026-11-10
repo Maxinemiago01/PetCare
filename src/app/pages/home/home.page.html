@@ -1,0 +1,153 @@
+<section class="welcome-banner">
+  <div>
+    <span class="handwritten">Small paws, big love.</span>
+    <h1>Every pet has a story.<br />Keep theirs close.</h1>
+    <p>A home for their checkups, milestones, and everyday care.</p>
+    <a class="button primary" routerLink="/app/pets/new"
+      ><ion-icon name="add" aria-hidden="true" /> Add a pet</a
+    >
+  </div>
+  <img src="assets/paw.png" class="welcome-paws" alt="" />
+  <div class="welcome-note">
+    <ion-icon name="heart" aria-hidden="true" /><span
+      >All their little details.<br /><strong>One happy place.</strong></span
+    >
+  </div>
+</section>
+
+@if (loading) {
+<div class="loading-state" role="status">
+  <ion-spinner name="crescent" />
+  <p>Opening your pet notebook…</p>
+</div>
+} @else if (error) {
+<div class="error-state" role="alert">
+  <ion-icon name="document-text" aria-hidden="true" />
+  <h2>We couldn’t open your notebook</h2>
+  <p>{{ error }}</p>
+  <button class="button secondary" type="button" (click)="load()">
+    <ion-icon name="refresh" aria-hidden="true" /> Try again
+  </button>
+</div>
+} @else {
+<div class="notebook-summary">
+  <span
+    ><strong>{{ pets.length }}</strong> {{ pets.length === 1 ? 'little companion' : 'little
+    companions' }}</span
+  ><span
+    ><strong>{{ records.length }}</strong> care {{ records.length === 1 ? 'record' : 'records'
+    }}</span
+  ><a routerLink="/app/reminders"
+    ><strong>{{ dueCount }}</strong> {{ dueCount === 1 ? 'reminder due' : 'reminders due' }}
+    <ion-icon name="chevron-forward" aria-hidden="true"
+  /></a>
+</div>
+<div class="home-columns">
+  <section class="pets-section">
+    <div class="section-heading">
+      <div>
+        <h2>Meet your little family<span class="heading-dot">.</span></h2>
+        <p>Each one, wonderfully one of a kind.</p>
+      </div>
+    </div>
+    @if (pets.length) {
+    <label class="search-box"
+      ><ion-icon name="search" aria-hidden="true" /><input
+        type="search"
+        name="search"
+        [(ngModel)]="search"
+        aria-label="Search pets"
+        placeholder="Find a furry friend…"
+    /></label>
+    <div class="filter-row" aria-label="Filter pets by species">
+      @for (item of filters; track item) {
+      <button
+        type="button"
+        [class.active]="filter === item"
+        [attr.aria-pressed]="filter === item"
+        (click)="filter = item"
+      >
+        {{ item }}
+      </button>
+      }
+    </div>
+    <div class="pet-grid">
+      @for (pet of filteredPets; track pet.id) {
+      <a class="pet-card" [routerLink]="['/app/pets', pet.id]">
+        <div class="pet-card-photo">
+          @if (pet.imageUrl) {
+          <img [src]="pet.imageUrl" [alt]="pet.name" loading="lazy" (error)="pet.imageUrl = ''" /> }
+          @else {
+          <div class="pet-placeholder">
+            <ion-icon name="paw" aria-hidden="true" /><span
+              >{{ pet.name.charAt(0).toUpperCase() }}</span
+            >
+          </div>
+          }<span class="species-tag">{{ pet.species }}</span>
+        </div>
+        <div class="pet-card-body">
+          <div class="pet-card-title">
+            <h3>{{ pet.name }}</h3>
+            <ion-icon name="chevron-forward" aria-hidden="true" />
+          </div>
+          <p>{{ pet.breed || 'One of a kind' }}</p>
+          <span class="pet-age">{{ petAge(pet.birthday) }}</span>
+        </div>
+      </a>
+      } @empty {
+      <div class="empty-state compact">
+        <h3>No little friends found</h3>
+        <p>Try another name or choose a different filter.</p>
+        <button class="button secondary" type="button" (click)="search = ''; filter = 'All pets'">
+          Clear filters
+        </button>
+      </div>
+      }
+    </div>
+    } @else {
+    <div class="empty-state">
+      <div class="empty-paw"><ion-icon name="paw" aria-hidden="true" /></div>
+      <h3>Your notebook starts with a name</h3>
+      <p>Add your first pet, then collect all the little details that make them, them.</p>
+      <a class="button primary" routerLink="/app/pets/new"
+        ><ion-icon name="add" aria-hidden="true" /> Add my first pet</a
+      >
+    </div>
+    }
+  </section>
+  <aside class="care-aside">
+    <section class="care-panel">
+      <div class="section-heading">
+        <h2>On the calendar</h2>
+        <ion-icon name="calendar" aria-hidden="true" />
+      </div>
+      @for (record of reminders.slice(0, 3); track record.id) {
+      <a class="reminder-mini" [routerLink]="['/app/pets', record.petId]"
+        ><span class="date-tile"
+          ><strong>{{ record.nextDate | date:'d' }}</strong>{{ record.nextDate | date:'MMM' }}</span
+        ><span
+          ><strong>{{ record.title }}</strong
+          ><small
+            >{{ petName(record.petId) }} · {{ record.nextDate < today ? 'Overdue' : record.nextDate
+            === today ? 'Due today' : 'Coming up' }}</small
+          ></span
+        ></a
+      >
+      } @empty {
+      <p class="aside-empty">
+        No care dates yet. Add a next due date to a record and it will appear here.
+      </p>
+      }
+      <a routerLink="/app/reminders" class="text-link"
+        >View care reminders <ion-icon name="chevron-forward" aria-hidden="true"
+      /></a>
+    </section>
+    <img
+      class="care-poster"
+      src="assets/happy-pets.jpg"
+      alt="A cat in a lilac blanket. Happy pets, healthy lives. Compassionate care for your best friend."
+      loading="lazy"
+    />
+  </aside>
+</div>
+}
