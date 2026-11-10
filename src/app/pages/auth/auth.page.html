@@ -42,14 +42,16 @@
               maxlength="254"
               autocomplete="email"
               placeholder="alex@petcare.test"
-              aria-describedby="email-hint"
+              [attr.aria-describedby]="isRegister ? null : 'email-hint'"
               [disabled]="busy"
             />
           </label>
+          @if (!isRegister) {
           <p id="email-hint" class="field-hint">
             A made-up address is fine, for example alex@petcare.test. Remember your password; this
             demo has no email recovery.
           </p>
+          }
           <label class="field"
             >Password
             <span class="password-input">
@@ -58,9 +60,9 @@
                 name="password"
                 [(ngModel)]="password"
                 required
-                minlength="6"
+                minlength="8"
                 [autocomplete]="isRegister ? 'new-password' : 'current-password'"
-                placeholder="At least 6 characters"
+                placeholder="Enter password"
                 [disabled]="busy"
               />
               <button
@@ -81,7 +83,7 @@
               name="confirmPassword"
               [(ngModel)]="confirmPassword"
               required
-              minlength="6"
+              minlength="8"
               autocomplete="new-password"
               placeholder="One more time"
               [disabled]="busy"

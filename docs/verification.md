@@ -2,6 +2,14 @@
 
 Verified on November 7, 2026 (Asia/Manila).
 
+## Password field update
+
+- PASS: login and registration use the placeholder `Enter password` and reject seven-character passwords before an API request. Eight-character passwords proceed to the simulated API.
+- PASS: registration's confirmation field also requires at least eight characters.
+- PASS: the made-up-address hint and its accessibility reference are absent from registration; the login hint remains.
+- PASS: the existing account-flow browser test and production build passed.
+- PASS: mobile login and registration screenshots were inspected, with no page errors or horizontal overflow at 320px and 390px.
+
 ## Build and browser checks
 
 - PASS: `npm run build` produces the production app in `www/` with no build errors.
