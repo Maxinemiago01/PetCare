@@ -4,6 +4,8 @@ Verified on November 7, 2026 (Asia/Manila).
 
 ## Password field update
 
+- PASS: the [updated Android build](https://github.com/Maxinemiago01/PetCare/actions/runs/42271638900) compiled and published successfully. The downloaded APK matches its checksum and contains the new password placeholder.
+
 - PASS: login and registration use the placeholder `Enter password` and reject seven-character passwords before an API request. Eight-character passwords proceed to the simulated API.
 - PASS: registration's confirmation field also requires at least eight characters.
 - PASS: the made-up-address hint and its accessibility reference are absent from registration; the login hint remains.
