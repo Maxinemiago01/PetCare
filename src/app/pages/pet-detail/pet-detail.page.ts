@@ -27,6 +27,7 @@ export class PetDetailPage implements OnInit {
   today = today();
   record = this.blankRecord();
   editingRecordId = '';
+  private originalNextDate = '';
   recordError = '';
   saving = false;
   deleting = false;
@@ -88,7 +89,9 @@ export class PetDetailPage implements OnInit {
   }
 
   openRecord(record?: PetRecord): void {
+    this.today = today();
     this.editingRecordId = record?.id || '';
+    this.originalNextDate = record?.nextDate || '';
     this.recordError = '';
     if (record) {
       const { id, ...data } = record;
@@ -98,11 +101,32 @@ export class PetDetailPage implements OnInit {
     this.recordDialog.nativeElement.showModal();
   }
 
+  get keepsOverdueDate(): boolean {
+    return (
+      !!this.record.nextDate &&
+      this.record.nextDate === this.originalNextDate &&
+      this.record.nextDate < this.today
+    );
+  }
+
   async saveRecord(form: NgForm): Promise<void> {
     if (form.invalid || this.saving) return;
+    this.today = today();
     this.recordError = '';
     if (!this.record.title.trim()) {
       this.recordError = 'Please give this record a title.';
+      return;
+    }
+    if (this.record.nextDate && this.record.nextDate < this.today && !this.keepsOverdueDate) {
+      this.recordError = 'Choose today or a future date for the next reminder.';
+      return;
+    }
+    // An existing overdue reminder may stay on the record when editing other fields.
+    const invalidInput = this.recordDialog.nativeElement.querySelector<HTMLInputElement>(
+      'input:invalid:not([name="nextDate"])',
+    );
+    if (invalidInput) {
+      invalidInput.reportValidity();
       return;
     }
     if (this.record.nextDate && this.record.nextDate < this.record.date) {
