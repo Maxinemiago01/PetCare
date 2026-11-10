@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Capacitor } from '@capacitor/core';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { CareNotificationsService } from './care-notifications.service';
@@ -22,6 +23,8 @@ interface AuthResponse {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly storageKey = 'petcare-supabase-session';
+  private readonly sessionStore =
+    Capacitor.getPlatform() === 'android' ? localStorage : sessionStorage;
   private readonly authUrl = `${environment.supabase.url}/auth/v1`;
   private readonly headers = { apikey: environment.supabase.publishableKey };
   private session: Session | null = this.readSession();
@@ -133,6 +136,7 @@ export class AuthService {
   private clearSession(): void {
     this.generation++;
     this.session = null;
+    this.sessionStore.removeItem(this.storageKey);
     sessionStorage.removeItem(this.storageKey);
     void this.careNotifications.clear();
   }
@@ -149,21 +153,29 @@ export class AuthService {
       refreshToken: response.refresh_token,
       expiresAt: Date.now() + Number(response.expires_in || 3600) * 1000,
     };
-    sessionStorage.setItem(this.storageKey, JSON.stringify(this.session));
+    this.sessionStore.setItem(this.storageKey, JSON.stringify(this.session));
   }
 
   private readSession(): Session | null {
     try {
-      const saved: Session = JSON.parse(sessionStorage.getItem(this.storageKey) || 'null');
+      const serialized =
+        this.sessionStore.getItem(this.storageKey) ?? sessionStorage.getItem(this.storageKey);
+      const saved: Session = JSON.parse(serialized ?? 'null');
       if (
         saved?.uid &&
         saved.email &&
         saved.accessToken &&
         saved.refreshToken &&
         Number.isFinite(saved.expiresAt)
-      )
+      ) {
+        if (this.sessionStore !== sessionStorage && serialized) {
+          this.sessionStore.setItem(this.storageKey, serialized);
+          sessionStorage.removeItem(this.storageKey);
+        }
         return saved;
+      }
     } catch {
+      this.sessionStore.removeItem(this.storageKey);
       sessionStorage.removeItem(this.storageKey);
     }
     return null;
