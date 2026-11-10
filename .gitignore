@@ -1,0 +1,10 @@
+node_modules/
+www/
+.angular/
+.ionic/
+.npm-cache/
+out-tsc/
+test-results/
+playwright-report/
+*.log
+.DS_Store
