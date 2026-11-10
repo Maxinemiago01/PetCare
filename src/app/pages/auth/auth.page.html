@@ -41,10 +41,15 @@
               email
               maxlength="254"
               autocomplete="email"
-              placeholder="you@example.com"
+              placeholder="alex@petcare.test"
+              aria-describedby="email-hint"
               [disabled]="busy"
             />
           </label>
+          <p id="email-hint" class="field-hint">
+            A made-up address is fine, for example alex@petcare.test. Remember your password; this
+            demo has no email recovery.
+          </p>
           <label class="field"
             >Password
             <span class="password-input">
@@ -82,10 +87,6 @@
               [disabled]="busy"
             />
           </label>
-          } @else {
-          <button type="button" class="text-button forgot-button" (click)="openReset()">
-            Forgot your password?
-          </button>
           } @if (error) {
           <p class="message error" role="alert">{{ error }}</p>
           }
@@ -116,41 +117,3 @@
     <p class="auth-bottom">One home for their happy, healthy lives.</p>
   </div>
 </ion-content>
-
-<dialog #resetDialog class="dialog small-dialog" [attr.aria-labelledby]="'reset-title'">
-  <div class="dialog-heading">
-    <h2 id="reset-title">A fresh start</h2>
-    <button
-      class="icon-button"
-      type="button"
-      aria-label="Close password reset"
-      (click)="resetDialog.close()"
-    >
-      <ion-icon name="close" />
-    </button>
-  </div>
-  <p>Enter your account email and we’ll send a password reset link.</p>
-  <form #resetForm="ngForm" ngNativeValidate (ngSubmit)="resetPassword(resetForm)">
-    <label class="field"
-      >Email address<input
-        type="email"
-        name="resetEmail"
-        [(ngModel)]="resetEmail"
-        required
-        email
-        autocomplete="email"
-        [disabled]="resetBusy"
-    /></label>
-    @if (resetError) {
-    <p class="message error" role="alert">{{ resetError }}</p>
-    } @if (resetMessage) {
-    <p class="message success" role="status">{{ resetMessage }}</p>
-    }
-    <div class="form-actions">
-      <button class="button secondary" type="button" (click)="resetDialog.close()">Close</button
-      ><button class="button primary" type="submit" [disabled]="resetBusy">
-        {{ resetBusy ? 'Sending…' : 'Send reset link' }}
-      </button>
-    </div>
-  </form>
-</dialog>

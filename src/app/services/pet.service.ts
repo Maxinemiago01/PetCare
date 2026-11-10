@@ -4,131 +4,124 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Pet, PetRecord } from '../models';
 import { AuthService } from './auth.service';
-
-interface FirestoreValue {
-  stringValue?: string;
-  doubleValue?: number;
-  nullValue?: null;
-}
-interface FirestoreDocument {
-  name: string;
-  fields?: Record<string, FirestoreValue>;
-}
+import { ImageService } from './image.service';
 
 @Injectable({ providedIn: 'root' })
 export class PetService {
-  private readonly baseUrl = `https://firestore.googleapis.com/v1/projects/${environment.firebase.projectId}/databases/(default)/documents`;
+  private readonly baseUrl = `${environment.supabase.url}/rest/v1`;
 
   constructor(
     private http: HttpClient,
     private auth: AuthService,
+    private images: ImageService,
   ) {}
 
   async getPets(): Promise<Pet[]> {
-    const pets = await this.list<Pet>('pets');
-    return pets.sort((a, b) => a.name.localeCompare(b.name));
+    const pets = await this.list<Pet>('pets', { order: 'name.asc,id.asc' });
+    for (const pet of pets) pet.imageUrl = await this.images.getUrl(pet.imagePath);
+    return pets;
   }
 
   async getPet(id: string): Promise<Pet> {
-    const options = await this.options();
-    const document = await firstValueFrom(
-      this.http.get<FirestoreDocument>(`${this.userUrl()}/pets/${encodeURIComponent(id)}`, options),
+    const headers = await this.headers();
+    const pets = await firstValueFrom(
+      this.http.get<Pet[]>(`${this.baseUrl}/pets`, {
+        headers,
+        params: { id: `eq.${id}`, limit: '1' },
+      }),
     );
-    return this.decode<Pet>(document);
+    if (!pets[0]) throw new Error('This pet profile could not be found.');
+    pets[0].imageUrl = await this.images.getUrl(pets[0].imagePath);
+    return pets[0];
   }
 
   async savePet(pet: Omit<Pet, 'id'>, id?: string): Promise<Pet> {
-    return this.save<Pet>('pets', pet, id);
+    // Signed photo URLs expire. Only the permanent path belongs in the database.
+    const { imageUrl, ...data } = pet;
+    const saved = await this.save<Pet>('pets', data, id);
+    saved.imageUrl = imageUrl;
+    return saved;
   }
 
   async getRecords(petId?: string): Promise<PetRecord[]> {
-    const records = await this.list<PetRecord>('records');
-    return records
-      .filter((record) => !petId || record.petId === petId)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    return this.list<PetRecord>('pet_records', {
+      order: 'date.desc,id.asc',
+      ...(petId ? { petId: `eq.${petId}` } : {}),
+    });
   }
 
   async saveRecord(record: Omit<PetRecord, 'id'>, id?: string): Promise<PetRecord> {
-    return this.save<PetRecord>('records', record, id);
+    return this.save<PetRecord>('pet_records', record, id);
   }
 
   async deleteRecord(id: string): Promise<void> {
-    const options = await this.options();
-    await firstValueFrom(
-      this.http.delete(`${this.userUrl()}/records/${encodeURIComponent(id)}`, options),
-    );
+    await this.remove('pet_records', id);
   }
 
   async deletePet(id: string): Promise<void> {
-    const records = await this.getRecords(id);
-    const options = await this.options();
-    // Firestore does not cascade deletes. Remove the pet's records before its profile.
-    for (const record of records) {
-      await firstValueFrom(
-        this.http.delete(`${this.userUrl()}/records/${encodeURIComponent(record.id)}`, options),
-      );
-    }
-    await firstValueFrom(
-      this.http.delete(`${this.userUrl()}/pets/${encodeURIComponent(id)}`, options),
-    );
+    // The database foreign key removes the pet's records in the same transaction.
+    await this.remove('pets', id);
   }
 
-  private userUrl(): string {
-    return `${this.baseUrl}/users/${encodeURIComponent(this.auth.uid)}`;
+  private async headers(): Promise<{ apikey: string; Authorization: string; Prefer: string }> {
+    return {
+      apikey: environment.supabase.publishableKey,
+      Authorization: `Bearer ${await this.auth.getToken()}`,
+      Prefer: 'return=representation',
+    };
   }
 
-  private async options(): Promise<{ headers: { Authorization: string } }> {
-    return { headers: { Authorization: `Bearer ${await this.auth.getToken()}` } };
-  }
-
-  private async list<T>(collection: string): Promise<T[]> {
-    const options = await this.options();
+  private async list<T>(table: string, params: Record<string, string>): Promise<T[]> {
+    const headers = await this.headers();
     const items: T[] = [];
-    let pageToken = '';
+    let offset = 0;
+    let page: T[];
     do {
-      const params = { pageSize: '100', pageToken };
-      const response = await firstValueFrom(
-        this.http.get<{ documents?: FirestoreDocument[]; nextPageToken?: string }>(
-          `${this.userUrl()}/${collection}`,
-          { ...options, params },
-        ),
+      page = await firstValueFrom(
+        this.http.get<T[]>(`${this.baseUrl}/${table}`, {
+          headers,
+          params: {
+            ...params,
+            owner_id: `eq.${this.auth.uid}`,
+            limit: '100',
+            offset: String(offset),
+          },
+        }),
       );
-      for (const document of response.documents || []) items.push(this.decode<T>(document));
-      pageToken = response.nextPageToken || '';
-    } while (pageToken);
+      items.push(...page);
+      offset += page.length;
+    } while (page.length === 100);
     return items;
   }
 
-  private async save<T>(collection: string, data: object, id?: string): Promise<T> {
-    const fields: Record<string, FirestoreValue> = {};
-    for (const [key, value] of Object.entries(data)) {
-      if (value === null) fields[key] = { nullValue: null };
-      else if (typeof value === 'number') fields[key] = { doubleValue: value };
-      else fields[key] = { stringValue: String(value) };
-    }
-    const options = await this.options();
-    let response: FirestoreDocument;
-    if (id) {
-      response = await firstValueFrom(
-        this.http.patch<FirestoreDocument>(
-          `${this.userUrl()}/${collection}/${encodeURIComponent(id)}?currentDocument.exists=true`,
-          { fields },
-          options,
-        ),
+  private async save<T>(table: string, data: object, id?: string): Promise<T> {
+    const headers = await this.headers();
+    const body = { ...data, owner_id: this.auth.uid };
+    let saved: T[];
+    if (id)
+      saved = await firstValueFrom(
+        this.http.patch<T[]>(`${this.baseUrl}/${table}`, body, {
+          headers,
+          params: { id: `eq.${id}` },
+        }),
       );
-    } else {
-      response = await firstValueFrom(
-        this.http.post<FirestoreDocument>(`${this.userUrl()}/${collection}`, { fields }, options),
+    else
+      saved = await firstValueFrom(
+        this.http.post<T[]>(`${this.baseUrl}/${table}`, body, { headers }),
       );
-    }
-    return this.decode<T>(response);
+    if (!saved[0]) throw new Error('This item no longer exists or you do not have access to it.');
+    return saved[0];
   }
 
-  private decode<T>(document: FirestoreDocument): T {
-    const result: Record<string, unknown> = { id: document.name.split('/').pop() };
-    for (const [key, value] of Object.entries(document.fields || {})) {
-      result[key] = value.stringValue ?? value.doubleValue ?? null;
-    }
-    return result as T;
+  private async remove(table: string, id: string): Promise<void> {
+    const headers = await this.headers();
+    const removed = await firstValueFrom(
+      this.http.delete<{ id: string }[]>(`${this.baseUrl}/${table}`, {
+        headers,
+        params: { id: `eq.${id}` },
+      }),
+    );
+    if (!removed.length)
+      throw new Error('This item no longer exists or you do not have access to it.');
   }
 }

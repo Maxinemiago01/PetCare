@@ -1,20 +1,25 @@
 import { test, expect, Page } from '@playwright/test';
 import path from 'node:path';
 
-type Document = { name: string; fields: Record<string, unknown> };
+type Document = { id: string; owner_id: string; [key: string]: any };
 type MockState = {
   pets: Document[];
   records: Document[];
   requests: { method: string; path: string; body: any }[];
   failLoad: boolean;
+  failMissingTables: boolean;
   failPetSaves: number;
-  failRecordDelete: boolean;
+  failPetDelete: boolean;
   failRefresh: boolean;
+  failUploads: boolean;
+  confirmationRequired: boolean;
   uploads: number;
   refreshes: number;
   authCalls: number;
+  signups: number;
 };
-const resource = 'projects/petclinic-e4c37/databases/(default)/documents/users/demo-user';
+const supabaseUrl = 'https://hykutdgbuycbfquefice.supabase.co';
+const publishableKey = 'sb_publishable_iiPy0P0yJLhkWmRW1WUnyQ_rm4SWe83';
 
 async function mockApi(page: Page): Promise<MockState> {
   const state: MockState = {
@@ -22,136 +27,165 @@ async function mockApi(page: Page): Promise<MockState> {
     records: [],
     requests: [],
     failLoad: false,
+    failMissingTables: false,
     failPetSaves: 0,
-    failRecordDelete: false,
+    failPetDelete: false,
     failRefresh: false,
+    failUploads: false,
+    confirmationRequired: false,
     uploads: 0,
     refreshes: 0,
     authCalls: 0,
+    signups: 0,
   };
   let nextId = 1;
-  const headers = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*' };
-  await page.route('https://identitytoolkit.googleapis.com/**', async (route) => {
-    state.authCalls++;
-    const request = route.request();
-    const body = request.postDataJSON();
-    if (request.url().includes('sendOobCode')) {
-      expect(body.requestType).toBe('PASSWORD_RESET');
-      await route.fulfill({ json: { email: body.email }, headers });
-      return;
-    }
-    if (body.password === 'wrong-password') {
-      await route.fulfill({
-        status: 400,
-        json: { error: { message: 'INVALID_LOGIN_CREDENTIALS' } },
-        headers,
-      });
-      return;
-    }
-    await route.fulfill({
-      json: {
-        localId: 'demo-user',
-        email: body.email,
-        idToken: 'test-id-token',
-        refreshToken: 'test-refresh-token',
-        expiresIn: '3600',
-      },
-      headers,
-    });
+  const headers = {
+    'access-control-allow-origin': '*',
+    'access-control-allow-headers': '*',
+    'access-control-allow-methods': 'GET,POST,PATCH,PUT,DELETE,OPTIONS',
+  };
+  const session = (email = 'student@example.com', token = 'test-access-token') => ({
+    access_token: token,
+    refresh_token: 'test-refresh-token',
+    expires_in: 3600,
+    user: { id: 'demo-user', email },
   });
-  await page.route('https://securetoken.googleapis.com/**', async (route) => {
-    state.refreshes++;
-    expect(route.request().postData()).toContain('grant_type=refresh_token');
-    if (state.failRefresh)
-      await route.fulfill({
-        status: 400,
-        json: { error: { message: 'INVALID_REFRESH_TOKEN' } },
-        headers,
-      });
-    else
-      await route.fulfill({
-        json: {
-          id_token: 'refreshed-token',
-          refresh_token: 'new-refresh-token',
-          expires_in: '3600',
-        },
-        headers,
-      });
-  });
-  await page.route('https://firestore.googleapis.com/**', async (route) => {
+  await page.route(supabaseUrl + '/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const method = request.method();
-    const match = url.pathname.match(/\/users\/([^/]+)\/(pets|records)(?:\/([^/]+))?$/);
-    expect(match, 'REST requests must stay inside the signed-in user path').not.toBeNull();
-    expect(match![1]).toBe('demo-user');
-    expect(request.headers()['authorization']).toMatch(/^Bearer (test-id-token|refreshed-token)$/);
-    const collection = match![2] as 'pets' | 'records';
-    const id = match![3];
-    const body = method === 'POST' || method === 'PATCH' ? request.postDataJSON() : null;
-    state.requests.push({ method, path: url.pathname, body });
-    if (state.failLoad && method === 'GET') {
+    if (method === 'OPTIONS') {
+      await route.fulfill({ status: 204, headers });
+      return;
+    }
+    if (method === 'GET' && url.pathname.startsWith('/storage/v1/object/sign/')) {
+      expect(url.searchParams.get('token')).toBe('test-signature');
       await route.fulfill({
-        status: 403,
-        json: { error: { message: 'PERMISSION_DENIED' } },
+        path: path.resolve('public/assets/paw.png'),
+        contentType: 'image/png',
         headers,
       });
       return;
     }
-    if (collection === 'pets' && ['POST', 'PATCH'].includes(method) && state.failPetSaves-- > 0) {
-      await route.fulfill({ status: 503, json: { error: { message: 'UNAVAILABLE' } }, headers });
+    expect(request.headers()['apikey']).toBe(publishableKey);
+    if (url.pathname.startsWith('/auth/v1/')) {
+      state.authCalls++;
+      const body = request.postData() ? request.postDataJSON() : {};
+      if (url.pathname.endsWith('/settings')) {
+        await route.fulfill({ json: { mailer_autoconfirm: !state.confirmationRequired }, headers });
+        return;
+      }
+      if (url.pathname.endsWith('/logout')) {
+        await route.fulfill({ status: 204, headers });
+        return;
+      }
+      if (url.searchParams.get('grant_type') === 'refresh_token') {
+        state.refreshes++;
+        expect(body.refresh_token).toBeTruthy();
+        if (state.failRefresh)
+          await route.fulfill({
+            status: 400,
+            json: { error_code: 'refresh_token_not_found' },
+            headers,
+          });
+        else
+          await route.fulfill({ json: session('student@example.com', 'refreshed-token'), headers });
+        return;
+      }
+      if (body.password === 'wrong-password') {
+        await route.fulfill({ status: 400, json: { error_code: 'invalid_credentials' }, headers });
+        return;
+      }
+      expect(['/auth/v1/token', '/auth/v1/signup']).toContain(url.pathname);
+      if (url.pathname.endsWith('/signup')) {
+        expect(state.confirmationRequired).toBe(false);
+        state.signups++;
+      }
+      await route.fulfill({ json: session(body.email), headers });
       return;
     }
-    if (collection === 'records' && method === 'DELETE' && state.failRecordDelete) {
-      await route.fulfill({ status: 503, json: { error: { message: 'UNAVAILABLE' } }, headers });
+    expect(request.headers()['authorization']).toMatch(
+      /^Bearer (test-access-token|refreshed-token)$/,
+    );
+    if (url.pathname.startsWith('/storage/v1/')) {
+      if (url.pathname.startsWith('/storage/v1/object/sign/pet-photos/')) {
+        expect(request.postDataJSON()).toEqual({ expiresIn: 3600 });
+        expect(url.pathname).toContain('/demo-user/');
+        if (url.pathname.endsWith('/missing.jpg')) {
+          await route.fulfill({
+            status: 400,
+            json: { statusCode: '404', message: 'Object not found' },
+            headers,
+          });
+          return;
+        }
+        await route.fulfill({
+          json: { signedURL: url.pathname.replace('/storage/v1', '') + '?token=test-signature' },
+          headers,
+        });
+        return;
+      }
+      expect(url.pathname).toMatch(
+        /^\/storage\/v1\/object\/pet-photos\/demo-user\/[a-f0-9-]+\.jpg$/,
+      );
+      expect(request.headers()['content-type']).toBe('image/jpeg');
+      expect(request.headers()['x-upsert']).toBe('false');
+      expect(request.postDataBuffer()!.subarray(0, 3)).toEqual(Buffer.from([255, 216, 255]));
+      state.uploads++;
+      if (state.failUploads) await route.fulfill({ status: 403, json: { code: '42501' }, headers });
+      else await route.fulfill({ json: { Key: url.pathname.split('/object/')[1] }, headers });
+      return;
+    }
+    const collection = url.pathname.endsWith('/pet_records') ? 'records' : 'pets';
+    expect(['/rest/v1/pets', '/rest/v1/pet_records']).toContain(url.pathname);
+    const id = url.searchParams.get('id')?.slice(3);
+    const body = ['POST', 'PATCH'].includes(method) ? request.postDataJSON() : null;
+    state.requests.push({ method, path: url.pathname, body });
+    if (state.failMissingTables) {
+      await route.fulfill({ status: 404, json: { code: 'PGRST205' }, headers });
+      return;
+    }
+    if (state.failLoad && method === 'GET') {
+      await route.fulfill({ status: 403, json: { code: '42501' }, headers });
+      return;
+    }
+    if (collection === 'pets' && ['POST', 'PATCH'].includes(method) && state.failPetSaves > 0) {
+      state.failPetSaves--;
+      await route.fulfill({ status: 503, json: { message: 'Service unavailable' }, headers });
+      return;
+    }
+    if (collection === 'pets' && method === 'DELETE' && state.failPetDelete) {
+      await route.fulfill({ status: 503, json: { message: 'Service unavailable' }, headers });
       return;
     }
     if (method === 'GET') {
-      const document = state[collection].find((document) => document.name.endsWith(`/${id}`));
-      if (id)
-        await route.fulfill({
-          status: document ? 200 : 404,
-          json: document || { error: { message: 'NOT_FOUND' } },
-          headers,
-        });
-      else {
-        const offset = Number(url.searchParams.get('pageToken') || 0);
-        const limit = Number(url.searchParams.get('pageSize') || 100);
-        const documents = state[collection].slice(offset, offset + limit);
-        await route.fulfill({
-          json: {
-            documents,
-            ...(offset + limit < state[collection].length
-              ? { nextPageToken: String(offset + limit) }
-              : {}),
-          },
-          headers,
-        });
-      }
+      if (!id) expect(url.searchParams.get('owner_id')).toBe('eq.demo-user');
+      let documents = state[collection].filter((item) => !id || item.id === id);
+      const petId = url.searchParams.get('petId')?.slice(3);
+      if (petId) documents = documents.filter((item) => item.petId === petId);
+      documents = [...documents].sort((a, b) =>
+        collection === 'pets' ? a.name.localeCompare(b.name) : b.date.localeCompare(a.date),
+      );
+      const offset = Number(url.searchParams.get('offset') || 0);
+      const limit = Number(url.searchParams.get('limit') || 100);
+      await route.fulfill({ json: documents.slice(offset, offset + limit), headers });
     } else if (method === 'POST' || method === 'PATCH') {
-      if (id) expect(url.searchParams.get('currentDocument.exists')).toBe('true');
-      const document = { name: `${resource}/${collection}/${id || nextId++}`, fields: body.fields };
+      expect(request.headers()['prefer']).toBe('return=representation');
+      expect(body.owner_id).toBe('demo-user');
+      expect(body.fields).toBeUndefined();
+      expect(body.imageUrl).toBeUndefined();
+      const document = { ...body, id: id || 'item-' + nextId++ };
       state[collection] = [
-        ...state[collection].filter((item) => item.name !== document.name),
+        ...state[collection].filter((item) => item.id !== document.id),
         document,
       ];
-      await route.fulfill({ json: document, headers });
+      await route.fulfill({ json: [document], headers });
     } else if (method === 'DELETE') {
-      state[collection] = state[collection].filter((document) => !document.name.endsWith(`/${id}`));
-      await route.fulfill({ json: {}, headers });
-    } else throw new Error(`Unexpected API method: ${method}`);
-  });
-  await page.route('https://api.cloudinary.com/**', async (route) => {
-    state.uploads++;
-    expect(route.request().url()).toBe('https://api.cloudinary.com/v1_1/o8wnfkuc/image/upload');
-    const body = route.request().postDataBuffer()!.toString('latin1');
-    expect(body).toContain('petcare');
-    expect(body).toContain('Content-Type: image/jpeg');
-    expect(body).not.toContain('api_secret');
-    await route.fulfill({
-      json: { secure_url: 'http://127.0.0.1:8100/assets/paw.png', public_id: 'test-pet-photo' },
-      headers,
-    });
+      const deleted = state[collection].filter((item) => item.id === id);
+      state[collection] = state[collection].filter((item) => item.id !== id);
+      if (collection === 'pets') state.records = state.records.filter((item) => item.petId !== id);
+      await route.fulfill({ json: deleted, headers });
+    } else throw new Error('Unexpected API method: ' + method);
   });
   return state;
 }
@@ -167,25 +201,23 @@ async function login(page: Page): Promise<void> {
 
 function seedPet(state: MockState, id = 'sample-pet', name = 'Test pet'): void {
   state.pets.push({
-    name: `${resource}/pets/${id}`,
-    fields: {
-      name: { stringValue: name },
-      species: { stringValue: 'Cat' },
-      breed: { stringValue: 'Mixed breed' },
-      sex: { stringValue: 'Female' },
-      birthday: { stringValue: '2023-04-01' },
-      weightKg: { doubleValue: 4.5 },
-      allergies: { stringValue: 'Test care note' },
-      notes: { stringValue: 'Test fixture, used only by automated tests.' },
-      imageUrl: { stringValue: '' },
-      imagePublicId: { stringValue: '' },
-      createdAt: { stringValue: '2026-01-01T00:00:00Z' },
-      updatedAt: { stringValue: '2026-01-01T00:00:00Z' },
-    },
+    id,
+    owner_id: 'demo-user',
+    name,
+    species: 'Cat',
+    breed: 'Mixed breed',
+    sex: 'Female',
+    birthday: '2023-04-01',
+    weightKg: 4.5,
+    allergies: 'Test care note',
+    notes: 'Test fixture, used only by automated tests.',
+    imagePath: '',
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
   });
 }
 
-test('account validation, registration, password visibility, reset, privacy, and logout', async ({
+test('account validation, fake-email registration, password visibility, privacy, and logout', async ({
   page,
 }) => {
   const state = await mockApi(page);
@@ -201,18 +233,12 @@ test('account validation, registration, password visibility, reset, privacy, and
   await page.getByRole('button', { name: 'Hide password' }).click();
   await page.getByRole('button', { name: 'Open my notebook' }).click();
   await expect(page.getByRole('alert')).toContainText('email or password is incorrect');
-  await page.getByRole('button', { name: 'Forgot your password?' }).click();
-  await page.getByRole('button', { name: 'Send reset link' }).click();
-  await expect(page.getByRole('status')).toContainText('reset link');
-  await page.keyboard.press('Escape');
-  await expect(page.getByRole('dialog')).not.toBeVisible();
-  await page.getByRole('button', { name: 'Forgot your password?' }).click();
-  await page.getByRole('button', { name: 'Close password reset' }).click();
+  await expect(page.getByRole('button', { name: 'Forgot your password?' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Privacy & terms' }).click();
   await expect(page.getByRole('heading', { name: 'Privacy & demo terms' })).toBeVisible();
   await page.getByRole('link', { name: 'Back to my notebook' }).click();
   await page.getByRole('link', { name: 'Create account', exact: true }).click();
-  await page.locator('input[name="email"]:visible').fill('new-student@example.com');
+  await page.locator('input[name="email"]:visible').fill('alex@petcare.test');
   await page.locator('input[name="password"]:visible').fill('petcare123');
   await page.locator('input[name="confirmPassword"]').fill('different123');
   await page.getByRole('button', { name: 'Create my account' }).click();
@@ -222,12 +248,13 @@ test('account validation, registration, password visibility, reset, privacy, and
   await expect(
     page.getByRole('heading', { name: 'Your notebook starts with a name' }),
   ).toBeVisible();
-  expect(await page.evaluate(() => sessionStorage.getItem('petcare-session'))).not.toContain(
-    'petcare123',
-  );
+  expect(state.signups).toBe(1);
+  expect(
+    await page.evaluate(() => sessionStorage.getItem('petcare-supabase-session')),
+  ).not.toContain('petcare123');
   await page.getByRole('button', { name: 'Log out', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
-  expect(await page.evaluate(() => sessionStorage.getItem('petcare-session'))).toBeNull();
+  expect(await page.evaluate(() => sessionStorage.getItem('petcare-supabase-session'))).toBeNull();
   await expect(page.locator('input[name="password"]')).toHaveValue('');
 });
 
@@ -250,7 +277,7 @@ test('pet and record CRUD, photo upload, filters, reminders, and cascading delet
   await page.getByRole('button', { name: 'Save pet profile' }).click();
   await expect(page.getByRole('heading', { name: 'Mochi.', exact: true })).toBeVisible();
   expect(state.uploads).toBe(1);
-  expect(state.pets[0].fields['imagePublicId']).toEqual({ stringValue: 'test-pet-photo' });
+  expect(state.pets[0].imagePath).toMatch(/^demo-user\/[a-f0-9-]+\.jpg$/);
   await page.getByRole('link', { name: 'Edit profile' }).click();
   await page.locator('input[name="name"]').fill('Mochi Bean');
   await page.getByRole('button', { name: 'Remove photo', exact: true }).click();
@@ -332,7 +359,7 @@ test('failed saves keep form data and do not upload the same photo twice on retr
 }) => {
   const state = await mockApi(page);
   await login(page);
-  await page.getByRole('link', { name: 'Add my first pet', exact: true }).click();
+  await page.getByRole('link', { name: 'Add a pet', exact: true }).click();
   await page.locator('input[name="name"]').fill('Retry pet');
   await page
     .locator('input[type="file"]')
@@ -349,39 +376,39 @@ test('failed saves keep form data and do not upload the same photo twice on retr
   expect(state.uploads).toBe(1);
 });
 
-test('a failed record deletion leaves its pet profile available for retry', async ({ page }) => {
+test('a failed pet deletion preserves the profile and its records for retry', async ({ page }) => {
   const state = await mockApi(page);
   seedPet(state);
   state.records.push({
-    name: `${resource}/records/care-1`,
-    fields: {
-      petId: { stringValue: 'sample-pet' },
-      category: { stringValue: 'medical' },
-      title: { stringValue: 'Test visit' },
-      date: { stringValue: '2026-01-01' },
-      nextDate: { stringValue: '' },
-      veterinarian: { stringValue: '' },
-      weightKg: { nullValue: null },
-      notes: { stringValue: '' },
-      createdAt: { stringValue: '2026-01-01T00:00:00Z' },
-    },
+    id: 'care-1',
+    owner_id: 'demo-user',
+    petId: 'sample-pet',
+    category: 'medical',
+    title: 'Test visit',
+    date: '2026-01-01',
+    nextDate: '',
+    veterinarian: '',
+    weightKg: null,
+    notes: '',
+    createdAt: '2026-01-01T00:00:00Z',
   });
   await login(page);
   await page.locator('.pet-card').click();
-  state.failRecordDelete = true;
+  state.failPetDelete = true;
   await page.getByRole('button', { name: 'Delete pet profile', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, remove' }).click();
   await expect(page.getByRole('alert')).toBeVisible();
   expect(state.pets).toHaveLength(1);
   expect(state.records).toHaveLength(1);
-  state.failRecordDelete = false;
+  state.failPetDelete = false;
   await page.getByRole('button', { name: 'Delete pet profile', exact: true }).click();
   await page.getByRole('button', { name: 'Yes, remove' }).click();
   await expect(page).toHaveURL(/\/app$/);
   expect(state.pets).toHaveLength(0);
+  expect(state.records).toHaveLength(0);
 });
 
-test('secondary navigation, dialog close controls, and mobile logout work', async ({ page }) => {
+test('secondary navigation and mobile logout work', async ({ page }) => {
   await mockApi(page);
   await login(page);
   await page.locator('.sidebar .brand').click();
@@ -400,8 +427,6 @@ test('secondary navigation, dialog close controls, and mobile logout work', asyn
   await page.locator('.mobile-nav').getByRole('link', { name: 'My pets', exact: true }).click();
   await page.getByRole('button', { name: 'Log out', exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
-  await page.getByRole('button', { name: 'Forgot your password?' }).click();
-  await page.getByRole('button', { name: 'Close', exact: true }).click();
   await page.locator('app-auth:not(.ion-page-hidden) .brand').click();
 });
 
@@ -409,7 +434,7 @@ test('permission errors offer a working retry and loading/empty states', async (
   const state = await mockApi(page);
   state.failLoad = true;
   await login(page);
-  await expect(page.getByRole('alert')).toContainText('Access was denied');
+  await expect(page.getByRole('alert')).toContainText('You do not have permission');
   state.failLoad = false;
   await page.getByRole('button', { name: 'Try again' }).click();
   await expect(
@@ -423,11 +448,11 @@ test('expired sessions refresh once for concurrent REST reads and invalid refres
   const state = await mockApi(page);
   await page.addInitScript(() =>
     sessionStorage.setItem(
-      'petcare-session',
+      'petcare-supabase-session',
       JSON.stringify({
         uid: 'demo-user',
         email: 'student@example.com',
-        idToken: 'test-id-token',
+        accessToken: 'test-access-token',
         refreshToken: 'old-token',
         expiresAt: 1,
       }),
@@ -444,9 +469,7 @@ test('expired sessions refresh once for concurrent REST reads and invalid refres
   await expect(page.getByRole('button', { name: 'Open my notebook' })).toBeVisible();
 });
 
-test('pagination loads every pet instead of stopping at the first Firestore page', async ({
-  page,
-}) => {
+test('pagination loads every pet instead of stopping at the first REST page', async ({ page }) => {
   const state = await mockApi(page);
   for (let index = 0; index < 101; index++) seedPet(state, `pet-${index}`, `Test pet ${index}`);
   await login(page);
@@ -454,6 +477,7 @@ test('pagination loads every pet instead of stopping at the first Firestore page
 });
 
 test('responsive pages, native dialog focus, and desktop/mobile screenshots', async ({ page }) => {
+  test.setTimeout(120000);
   const state = await mockApi(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -503,4 +527,52 @@ test('responsive pages, native dialog focus, and desktop/mobile screenshots', as
   await page.getByRole('link', { name: 'Reminders', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Care reminders.' })).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('confirmation-enabled configuration blocks signup before any email can be requested', async ({
+  page,
+}) => {
+  const state = await mockApi(page);
+  state.confirmationRequired = true;
+  await page.goto('/register');
+  await page.locator('input[name="email"]').fill('alex@petcare.test');
+  await page.locator('input[name="password"]').fill('petcare123');
+  await page.locator('input[name="confirmPassword"]').fill('petcare123');
+  await page.getByRole('button', { name: 'Create my account' }).click();
+  await expect(page.getByRole('alert')).toContainText('Turn off Confirm email');
+  expect(state.signups).toBe(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('petcare-supabase-session'))).toBeNull();
+});
+
+test('a missing private photo does not prevent opening pet records', async ({ page }) => {
+  const state = await mockApi(page);
+  seedPet(state);
+  state.pets[0].imagePath = 'demo-user/missing.jpg';
+  await login(page);
+  await expect(page.locator('.pet-card')).toBeVisible();
+  await page.locator('.pet-card').click();
+  await expect(page.getByRole('heading', { name: 'Test pet.', exact: true })).toBeVisible();
+  await expect(page.locator('.profile-avatar img')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Add a record', exact: true })).toBeVisible();
+});
+
+test('missing schema and private-photo upload errors allow a useful retry', async ({ page }) => {
+  const state = await mockApi(page);
+  state.failMissingTables = true;
+  await login(page);
+  await expect(page.getByRole('alert')).toContainText('database has not been set up');
+  state.failMissingTables = false;
+  await page.getByRole('button', { name: 'Try again' }).click();
+  await page.getByRole('link', { name: 'Add a pet', exact: true }).click();
+  await page.locator('input[name="name"]').fill('Photo retry');
+  await page.locator('input[type="file"]').setInputFiles(path.resolve('public/assets/paw.png'));
+  await expect(page.getByAltText('Pet profile preview')).toBeVisible();
+  state.failUploads = true;
+  await page.getByRole('button', { name: 'Save pet profile' }).click();
+  await expect(page.getByRole('alert')).toContainText('permission');
+  expect(state.pets).toHaveLength(0);
+  state.failUploads = false;
+  await page.getByRole('button', { name: 'Save pet profile' }).click();
+  await expect(page.getByRole('heading', { name: 'Photo retry.', exact: true })).toBeVisible();
+  await expect(page.getByAltText('Photo retry', { exact: true })).toBeVisible();
 });

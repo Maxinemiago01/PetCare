@@ -21,17 +21,19 @@ import { AuthService } from '../../services/auth.service';
         <section>
           <h2>What is saved</h2>
           <p>
-            Your account email and sign-in information are handled by Firebase Authentication. Pet
-            profiles and care records are saved in Cloud Firestore under your account. This app does
-            not store your password in its database.
+            Your account email and sign-in information are handled by Supabase Auth. Pet profiles
+            and care records are saved in Supabase under your account. This app does not store your
+            password in its database. You can use a made-up email address as your login ID. This
+            demo sends no verification or recovery emails, so remember your password.
           </p>
         </section>
         <section>
           <h2>Pet photos</h2>
           <p>
-            Profile photos are uploaded to Cloudinary. Standard photo links can be viewed by anyone
-            who has the link. Upload only photos you have permission to use, and avoid photos
-            containing private documents or personal information.
+            Profile photos are uploaded to private Supabase Storage. The app displays them using
+            temporary links that work for one hour. Anyone who has a temporary link can view that
+            photo until the link expires. Upload only photos you have permission to use, and avoid
+            photos containing private documents or personal information.
           </p>
         </section>
         <section>
@@ -46,8 +48,8 @@ import { AuthService } from '../../services/auth.service';
           <h2>Editing and removal</h2>
           <p>
             You can edit or delete your pets and care records in the app. Deleting a pet also
-            removes its care records. Replaced or removed photo files remain in Cloudinary until the
-            project owner removes them from that account.
+            removes its care records. Replaced or removed photo files remain private in Supabase
+            Storage until the project owner removes them from that account.
           </p>
         </section>
         <section>

@@ -1,11 +1,17 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment';
+import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
 export class ImageService {
-  constructor(private http: HttpClient) {}
+  private readonly storageUrl = `${environment.supabase.url}/storage/v1`;
+
+  constructor(
+    private http: HttpClient,
+    private auth: AuthService,
+  ) {}
 
   async prepare(file: File): Promise<Blob> {
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type))
@@ -40,16 +46,51 @@ export class ImageService {
     }
   }
 
-  async upload(photo: Blob): Promise<{ imageUrl: string; imagePublicId: string }> {
-    const data = new FormData();
-    data.append('file', photo, 'pet-profile.jpg');
-    data.append('upload_preset', environment.cloudinary.uploadPreset);
-    const response = await firstValueFrom(
-      this.http.post<{ secure_url: string; public_id: string }>(
-        `https://api.cloudinary.com/v1_1/${environment.cloudinary.cloudName}/image/upload`,
-        data,
+  async upload(photo: Blob): Promise<string> {
+    const path = `${this.auth.uid}/${crypto.randomUUID()}.jpg`;
+    const headers = {
+      ...(await this.headers()),
+      'Content-Type': 'image/jpeg',
+      'x-upsert': 'false',
+    };
+    await firstValueFrom(
+      this.http.post(
+        `${this.storageUrl}/object/${environment.supabase.photoBucket}/${path}`,
+        photo,
+        { headers },
       ),
     );
-    return { imageUrl: response.secure_url, imagePublicId: response.public_id };
+    return path;
+  }
+
+  async getUrl(path: string): Promise<string> {
+    if (!path) return '';
+    const headers = await this.headers();
+    const safePath = path.split('/').map(encodeURIComponent).join('/');
+    try {
+      const response = await firstValueFrom(
+        this.http.post<{ signedURL: string }>(
+          `${this.storageUrl}/object/sign/${environment.supabase.photoBucket}/${safePath}`,
+          { expiresIn: 3600 },
+          { headers },
+        ),
+      );
+      return `${this.storageUrl}${response.signedURL}`;
+    } catch (error) {
+      // A removed photo should not prevent opening the pet's care records.
+      if (
+        error instanceof HttpErrorResponse &&
+        (error.status === 404 || String(error.error?.statusCode) === '404')
+      )
+        return '';
+      throw error;
+    }
+  }
+
+  private async headers(): Promise<{ apikey: string; Authorization: string }> {
+    return {
+      apikey: environment.supabase.publishableKey,
+      Authorization: `Bearer ${await this.auth.getToken()}`,
+    };
   }
 }
