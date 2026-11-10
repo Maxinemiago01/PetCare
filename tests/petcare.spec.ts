@@ -262,6 +262,7 @@ test('account validation, fake-email registration, password visibility, privacy,
 test('pet and record CRUD, photo upload, filters, reminders, and cascading deletion', async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date('2026-01-02T12:00:00+08:00'));
   const state = await mockApi(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -327,8 +328,19 @@ test('pet and record CRUD, photo upload, filters, reminders, and cascading delet
   await page.locator('.reminder-mini').click();
   await expect(page.getByRole('heading', { name: 'Mochi Bean.', exact: true })).toBeVisible();
 
+  await page.clock.setFixedTime(new Date('2026-01-03T12:00:00+08:00'));
   await page.getByRole('link', { name: 'Care reminders', exact: true }).click();
   await expect(page.getByText('Overdue', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'For Mochi Bean' }).click();
+  await page.getByRole('button', { name: 'Edit Rabies', exact: true }).click();
+  const overdueForm = page.getByRole('dialog');
+  await overdueForm.locator('input[name="title"]').fill('Rabies vaccination');
+  await overdueForm.getByRole('button', { name: 'Save record' }).click();
+  await expect(overdueForm).not.toBeVisible();
+  expect(state.records.find((item) => item.title === 'Rabies vaccination')?.nextDate).toBe(
+    '2026-01-02',
+  );
+  await page.getByRole('link', { name: 'Care reminders', exact: true }).click();
   await page.getByRole('button', { name: 'Mark done' }).click();
   await expect(
     page.getByRole('heading', { name: 'Nothing on the calendar just yet' }),
@@ -401,6 +413,8 @@ test('Android care alerts schedule both dates, replace edits, and cancel complet
         localStorage.setItem('test-alarms', JSON.stringify(remaining));
       },
       removeDeliveredNotificationsById: () => undefined,
+      cancelAll: () => localStorage.removeItem('test-alarms'),
+      removeAllDeliveredNotifications: () => undefined,
     };
     Object.assign(window, {
       androidBridge: {},
@@ -431,10 +445,24 @@ test('Android care alerts schedule both dates, replace edits, and cancel complet
     await page.evaluate(() => JSON.parse(localStorage.getItem('test-channel')!).vibration),
   ).toBe(true);
 
+  // A new Android WebView loses sessionStorage but retains the device's app storage.
+  await page.evaluate(() => sessionStorage.clear());
+  await page.reload();
+  await expect(page.locator('.pet-card')).toBeVisible();
+  expect(state.authCalls).toBe(1);
+
   await page.locator('.pet-card').click();
   await page.getByRole('button', { name: 'Edit Vaccine booster', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.locator('input[name="nextDate"]').fill('2026-05-01');
+  const dueDate = dialog.locator('input[name="nextDate"]');
+  await expect(dueDate).toHaveAttribute('min', '2026-04-30');
+  await dueDate.fill('2026-04-29');
+  await dialog.locator('form').dispatchEvent('submit');
+  await expect(dialog.getByRole('alert')).toHaveText(
+    'Choose today or a future date for the next reminder.',
+  );
+  expect(state.records[0].nextDate).toBe('2026-05-02');
+  await dueDate.fill('2026-05-01');
   await dialog.getByRole('button', { name: 'Save record' }).click();
   await expect(dialog).not.toBeVisible();
   await expect
@@ -448,6 +476,11 @@ test('Android care alerts schedule both dates, replace edits, and cancel complet
   ).toBeVisible();
   expect(await scheduledTimes()).toEqual([]);
   expect(state.records[0].nextDate).toBe('');
+  await page.getByRole('button', { name: 'Log out', exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/login$/);
+  expect(await page.evaluate(() => localStorage.getItem('petcare-supabase-session'))).toBeNull();
 });
 
 test('failed saves keep form data and do not upload the same photo twice on retry', async ({
