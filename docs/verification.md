@@ -13,6 +13,17 @@ Verified on November 7, 2026 (Asia/Manila).
 
 Browser tests intercept Supabase HTTP requests. They assert the publishable API key, user bearer token, plain JSON payloads, REST verbs, and private-photo requests. They do not alter the live project.
 
+## Android packaging and download
+
+- PASS: [GitHub Actions build](https://github.com/Maxinemiago01/PetCare/actions/runs/42266968593) compiled the Android APK and published the release files.
+- PASS: the public APK and QR downloads return HTTP 200. The APK's SHA-256 matches the published checksum.
+- PASS: APK archive inspection found the native manifest, compiled application code, bundled web app, and correct package ID, without a local development-server URL.
+- PASS: independent decoding of the published QR gives the exact APK URL in `downloads/download-url.txt`.
+- PASS: the responsive scenario passed again at 320, 390, 768, 1024, and 1440 pixels after the viewport adjustment.
+- PASS: no signing key is tracked in Git.
+
+See `docs/android.md` for installation instructions. Physical-device installation has not been tested here.
+
 ## Live Supabase checks
 
 Connected project: `hykutdgbuycbfquefice` (PetCare).
